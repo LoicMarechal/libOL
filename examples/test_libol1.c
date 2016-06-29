@@ -37,9 +37,10 @@
 
 int main()
 {
-	lng i, j, k, cpt=0,NmbVer, NmbTri, NmbItm, MshIdx, ver, dim, ref, idx, (*TriTab)[3], buf[ BufSiz ], inc=50;
+	LolInt i, j, k, cpt=0, NmbVer, NmbEdg, NmbTri, NmbItm, MshIdx, ver, dim, ref, idx;
+    LolInt (*EdgTab)[2], (*TriTab)[3], buf[ BufSiz ], inc=50;
 	long long OctIdx;
-	double crd1[3] = {0,0,0}, crd2[3] = {0.002928, 0.079575, 0.006978}, crd3[3] = {-.0054, .1488, -.0067};
+	double crd1[3] = {1.16235, 0.147997, -4.38923 }, crd2[3] = {0.002928, 0.079575, 0.006978}, crd3[3] = {-.0054, .1488, -.0067};
 	double dis, (*VerTab)[3], MinCrd[3], MaxCrd[3], IncCrd[3], AvgDis=0;
 	time_t t, t2, MinTim = INT_MAX, MaxTim = 0;
 
@@ -51,15 +52,16 @@ int main()
 	t = clock();
 	puts("\nRead mesh");
 
-	if(!(MshIdx = GmfOpenMesh("test.meshb", GmfRead, &ver, &dim)))
+	if(!(MshIdx = GmfOpenMesh("winch.meshb", GmfRead, &ver, &dim)))
 	{
 		puts("Cannot open test.meshb.");
 		return(1);
 	}
 
 	NmbVer = GmfStatKwd(MshIdx, GmfVertices);
+	NmbEdg = GmfStatKwd(MshIdx, GmfEdges);
 	NmbTri = GmfStatKwd(MshIdx, GmfTriangles);
-	printf("vertices = %d, triangles = %d, dimension = %d, version = %d\n", NmbVer, NmbTri, dim, ver);
+	printf("vertices = %d, edges = %d, triangles = %d, dimension = %d, version = %d\n", NmbVer, NmbEdg, NmbTri, dim, ver);
 
 	if( !NmbVer || (dim != 3) )
 	{
@@ -70,14 +72,22 @@ int main()
 	VerTab = malloc((NmbVer+1) * 3 * sizeof(double));
 	GmfGotoKwd(MshIdx, GmfVertices);
 	GmfGetBlock(MshIdx, GmfVertices, GmfDouble, &VerTab[1][0], &VerTab[2][0], GmfDouble, &VerTab[1][1], &VerTab[2][1], \
-				GmfDouble, &VerTab[1][2], &VerTab[2][2], GmfLong, &ref, &ref);
+				GmfDouble, &VerTab[1][2], &VerTab[2][2], GmfInt, &ref, &ref);
+
+	if(NmbEdg)
+	{
+		EdgTab = malloc((NmbEdg+1) * 2 * sizeof(LolInt));
+		GmfGotoKwd(MshIdx, GmfEdges);
+		GmfGetBlock(MshIdx, GmfEdges, GmfInt, &EdgTab[1][0], &EdgTab[2][0], \
+                    GmfInt, &EdgTab[1][1], &EdgTab[2][1], GmfInt, &ref, &ref);
+	}
 
 	if(NmbTri)
 	{
-		TriTab = malloc((NmbTri+1) * 3 * sizeof(lng));
+		TriTab = malloc((NmbTri+1) * 3 * sizeof(LolInt));
 		GmfGotoKwd(MshIdx, GmfTriangles);
-		GmfGetBlock(MshIdx, GmfTriangles, GmfLong, &TriTab[1][0], &TriTab[2][0], GmfLong, &TriTab[1][1], &TriTab[2][1], \
-					GmfLong, &TriTab[1][2], &TriTab[2][2], GmfLong, &ref, &ref);
+		GmfGetBlock(MshIdx, GmfTriangles, GmfInt, &TriTab[1][0], &TriTab[2][0], GmfInt, &TriTab[1][1], &TriTab[2][1], \
+					GmfInt, &TriTab[1][2], &TriTab[2][2], GmfInt, &ref, &ref);
 	}
 
 	GmfCloseMesh(MshIdx);
@@ -90,7 +100,9 @@ int main()
 
 	puts("\nBuild the octree : ");
 	t = clock();
-	OctIdx = NewOctree(NmbVer, VerTab[1], VerTab[2], NmbTri, TriTab[1], TriTab[2]);
+	OctIdx = LolNewOctree(  NmbVer, VerTab[1], VerTab[2], NmbEdg, EdgTab[1], EdgTab[2], NmbTri, TriTab[1], TriTab[2], \
+                            0, NULL, NULL, 0, NULL, NULL, 0, NULL, NULL, 0, NULL, NULL, 0, NULL, NULL );
+
 	printf(" %g s\n", (double)(clock() - t) / CLOCKS_PER_SEC);
 
 	for(i=0;i<3;i++)
@@ -100,26 +112,29 @@ int main()
 	}
 
 	puts("\nSearch for vertices in a bounding box :");
-	NmbItm = GetBoundingBox(OctIdx, TypVer, BufSiz, buf, MinCrd, MaxCrd);
+	NmbItm = LolGetBoundingBox(OctIdx, LolTypVer, BufSiz, buf, MinCrd, MaxCrd);
 
 	for(i=0;i<NmbItm;i++)
 		printf(" vertex : %d\n", buf[i]);
 
-	puts("\nSearch for the closest vertex from a given point :");
-	idx = GetNearest(OctIdx, TypVer, crd1, &dis, 0.);
-	printf(" closest vertex = %d, distance = %g\n", idx, dis);
+    if(NmbEdg)
+    {
+        puts("\nSearch for the closest edge from a given point :");
+	    idx = LolGetNearest(OctIdx, LolTypEdg, crd1, &dis, 0.);
+	    printf(" closest edge = %d (%d - %d), distance = %g\n", idx, EdgTab[ idx ][0], EdgTab[ idx ][1], dis);
+    }
 
 	if(NmbTri)
 	{
 		puts("\nSearch for triangles in a bounding box :");
 
-		NmbItm = GetBoundingBox(OctIdx, TypTri, BufSiz, buf, MinCrd, MaxCrd);
+		NmbItm = LolGetBoundingBox(OctIdx, LolTypTri, BufSiz, buf, MinCrd, MaxCrd);
 
 		for(i=0;i<NmbItm;i++)
 			printf(" triangle : %d\n", buf[i]);
 
 		puts("\nSearch for the closest triangle from a given point :");
-		idx = GetNearest(OctIdx, TypTri, crd1, &dis, 0.);
+		idx = LolGetNearest(OctIdx, LolTypTri, crd1, &dis, 0.);
 		printf(" closest triangle = %d, distance = %g\n", idx, dis);
 
 		for(i=1;i<=NmbVer;i++)
@@ -147,7 +162,7 @@ int main()
 				for(k=0;k<inc;k++)
 				{
 					t2 = clock();
-					idx = GetNearest(OctIdx, TypTri, crd1, &dis, .005);
+					idx = LolGetNearest(OctIdx, LolTypTri, crd1, &dis, .005);
 					t2 = clock() - t2;
 					MinTim = MIN(MinTim, t2);
 					MaxTim = MAX(MaxTim, t2);
@@ -172,11 +187,14 @@ int main()
 	/*------------------*/
 
 	printf("\nFree octree %lld\n", OctIdx);
-	printf(" memory used = %zd bytes\n", FreeOctree(OctIdx));
+	printf(" memory used = %zd bytes\n", LolFreeOctree(OctIdx));
 	free(VerTab);
 
 	if(NmbTri)
 		free(TriTab);
+
+	if(NmbEdg)
+		free(EdgTab);
 
 	return(0);
 }
