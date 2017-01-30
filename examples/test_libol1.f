@@ -2,7 +2,7 @@
       include 'libol1.ins'
 
       integer i, j, NmbVer, NmbTri, NmbItm, MshIdx, ver, dim, ref, idx
-      integer res, TriTab(3,10000000), buf(10000)
+      integer res, EdgTab(2,10000000), TriTab(3,10000000), buf(10000)
 	  integer*8 mem, OctIdx
 	  real*8 VerTab(3,10000000), crd1(3), box(3,2), dis
 
@@ -19,6 +19,10 @@ c     Check memory bounds
       if(NmbVer.le.0) STOP ' NmbVer <= 0'
 	  if(NmbVer.gt.10000000) STOP ' NmbVer > 10000000'
 
+      NmbEdg = GmfStatKwdF77(MshIdx, GmfEdges)
+      print*, 'NmbEdg = ', NmbEdg
+	  if(NmbEdg.gt.10000000) STOP ' NmbEdg > 10000000'
+
       NmbTri = GmfStatKwdF77(MshIdx, GmfTriangles)
       print*, 'NmbTri = ', NmbTri
 	  if(NmbTri.gt.10000000) STOP ' NmbTri > 10000000'
@@ -29,6 +33,13 @@ c     Read the vertices
       do i = 1, NmbVer
           res = GmfGetVertex3dr8(MshIdx, VerTab(1,i), VerTab(2,i)
      +, VerTab(3,i), ref)
+      end do
+
+c     Read the edges
+      res = GmfGotoKwdF77(MshIdx, GmfEdges)
+
+      do i = 1, NmbEdg
+          res = GmfGetEdge(MshIdx, EdgTab(1,i), EdgTab(2,i), ref)
       end do
 
 c     Read the triangles
@@ -45,6 +56,7 @@ c     Close the mesh file
 
 c     Build the octree
       OctIdx = NewOctreeF77(NmbVer, VerTab(1,1), VerTab(1,2)
+     +, NmbEdg, EdgTab(1,1), EdgTab(1,2)
      +, NmbTri, TriTab(1,1), TriTab(1,2))
 	  print*, 'OctIdx = ', OctIdx
 
