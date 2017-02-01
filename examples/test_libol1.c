@@ -41,7 +41,7 @@ int main()
 {
    LolInt i, j, k, cpt=0, NmbVer, NmbEdg, NmbTri, NmbItm, MshIdx, ver, dim;
    LolInt (*EdgTab)[2], (*TriTab)[3], buf[ BufSiz ], inc=50, ref, idx;
-   long long OctIdx;
+   int64_t OctIdx;
    double crd1[3] = {1.16235, 0.147997, -4.38923 };
    double crd2[3] = {0.002928, 0.079575, 0.006978};
    double crd3[3] = {-.0054, .1488, -.0067};
@@ -76,25 +76,31 @@ int main()
 
    VerTab = malloc((NmbVer+1) * 3 * sizeof(double));
    GmfGotoKwd(MshIdx, GmfVertices);
-   GmfGetBlock(MshIdx, GmfVertices, GmfDouble, &VerTab[1][0], &VerTab[2][0], \
+   GmfGetBlock(MshIdx, GmfVertices, \
+               GmfDouble, &VerTab[1][0], &VerTab[2][0], \
                GmfDouble, &VerTab[1][1], &VerTab[2][1], \
-               GmfDouble, &VerTab[1][2], &VerTab[2][2], GmfInt, &ref, &ref );
+               GmfDouble, &VerTab[1][2], &VerTab[2][2], \
+               GmfInt, &ref, &ref );
 
    if(NmbEdg)
    {
       EdgTab = malloc((NmbEdg+1) * 2 * sizeof(LolInt));
       GmfGotoKwd(MshIdx, GmfEdges);
-      GmfGetBlock(MshIdx, GmfEdges, GmfInt, &EdgTab[1][0], &EdgTab[2][0], \
-                  GmfInt, &EdgTab[1][1], &EdgTab[2][1], GmfInt, &ref, &ref);
+      GmfGetBlock(MshIdx, GmfEdges, \
+                  GmfInt, &EdgTab[1][0], &EdgTab[2][0], \
+                  GmfInt, &EdgTab[1][1], &EdgTab[2][1], \
+                  GmfInt, &ref, &ref);
    }
 
    if(NmbTri)
    {
       TriTab = malloc((NmbTri+1) * 3 * sizeof(LolInt));
       GmfGotoKwd(MshIdx, GmfTriangles);
-      GmfGetBlock(MshIdx, GmfTriangles, GmfInt, &TriTab[1][0], &TriTab[2][0], \
+      GmfGetBlock(MshIdx, GmfTriangles, \
+                  GmfInt, &TriTab[1][0], &TriTab[2][0], \
                   GmfInt, &TriTab[1][1], &TriTab[2][1], \
-                  GmfInt, &TriTab[1][2], &TriTab[2][2], GmfInt, &ref, &ref );
+                  GmfInt, &TriTab[1][2], &TriTab[2][2], \
+                  GmfInt, &ref, &ref );
    }
 
    GmfCloseMesh(MshIdx);
@@ -107,8 +113,14 @@ int main()
 
    puts("\nBuild the octree : ");
    t = clock();
-   OctIdx = LolNewOctree(  NmbVer, VerTab[1], VerTab[2], NmbEdg, EdgTab[1], EdgTab[2], NmbTri, TriTab[1], TriTab[2], \
-                     0, NULL, NULL, 0, NULL, NULL, 0, NULL, NULL, 0, NULL, NULL, 0, NULL, NULL );
+   OctIdx = LolNewOctree(  NmbVer, VerTab[1], VerTab[2], \
+                           NmbEdg, EdgTab[1], EdgTab[2], \
+                           NmbTri, TriTab[1], TriTab[2], \
+                           0, NULL, NULL, \
+                           0, NULL, NULL, \
+                           0, NULL, NULL, \
+                           0, NULL, NULL, \
+                           0, NULL, NULL );
 
    printf(" %g s\n", (double)(clock() - t) / CLOCKS_PER_SEC);
 

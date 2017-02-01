@@ -9,7 +9,7 @@
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   jan 27 2017                                        */
+/*    Last modification:   jan 30 2017                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -637,6 +637,7 @@ LolInt LolGetNearest(int64_t OctIdx, LolInt typ, double VerCrd[3], \
 
 
 /*----------------------------------------------------------------------------*/
+/* Project a vertex on a given enitity: vertex, edge or triangle              */
 /*----------------------------------------------------------------------------*/
 
 LolInt LolProjectVertex(int64_t OctIdx, double *VerCrd, \
@@ -650,11 +651,14 @@ LolInt LolProjectVertex(int64_t OctIdx, double *VerCrd, \
 
    if(typ == LolTypVer)
    {
+      // Vertex case, there is only one possible projection:
+      // the target vertex itself
       CpyVec(GetPtrCrd(msh, MinItm), MinCrd);
       return(1);
    }
    else if(typ == LolTypEdg)
    {
+      // Edge case, the closest position may be on the edge itself
       SetEdg(msh, MinItm);
       PrjVerLin(VerCrd, msh->edg.ver[0]->crd, msh->edg.tng, TmpVer.crd);
 
@@ -664,6 +668,7 @@ LolInt LolProjectVertex(int64_t OctIdx, double *VerCrd, \
          return(2);
       }
 
+      // Or one of its two vertices
       if(dis(VerCrd, msh->edg.ver[0]->crd) < dis(VerCrd, msh->edg.ver[1]->crd))
          CpyVec(msh->edg.ver[0]->crd, MinCrd);
       else
@@ -673,6 +678,7 @@ LolInt LolProjectVertex(int64_t OctIdx, double *VerCrd, \
    }
    else if(typ == LolTypTri)
    {
+      // Triangle case, the closest position may be on the triangle itself
       SetTri(msh, MinItm);
       PrjVerPla(VerCrd, msh->tri.ver[0]->crd, msh->tri.nrm, TmpVer.crd);
 
@@ -682,6 +688,7 @@ LolInt LolProjectVertex(int64_t OctIdx, double *VerCrd, \
          return(3);
       }
 
+      // Or fall inside one of its three edges
       for(i=0;i<3;i++)
       {
          PrjVerLin(VerCrd, msh->tri.edg[i].ver[0]->crd, msh->tri.edg->tng, TmpVer.crd);
@@ -697,6 +704,7 @@ LolInt LolProjectVertex(int64_t OctIdx, double *VerCrd, \
       if(EdgFlg)
          return(2);
 
+      // Or one of the three vertices
       for(i=0;i<3;i++)
       {
          CurDis = dis(VerCrd, msh->tri.ver[i]->crd);
@@ -1911,6 +1919,7 @@ static LolInt BoxIntBox(double box1[2][3], double box2[2][3], double eps)
 /* Various basic operations on vectors                                        */
 /*----------------------------------------------------------------------------*/
 
+// Euclidian distance
 static double dis(double a[3], double b[3])
 {
    int i;
@@ -1922,6 +1931,7 @@ static double dis(double a[3], double b[3])
    return(sqrt(siz));
 }
 
+// Euclidian distance to the power of two
 static double DisPow(double a[3], double b[3])
 {
    int i;
@@ -1933,6 +1943,7 @@ static double DisPow(double a[3], double b[3])
    return(siz);
 }
 
+// W = U - V
 static void SubVec3(double u[3], double v[3], double w[3])
 {
    int i;
@@ -1941,6 +1952,7 @@ static void SubVec3(double u[3], double v[3], double w[3])
       w[i] = u[i] - v[i];
 }
 
+// Euclidian norm
 static void NrmVec(double u[3])
 {
    int i;
@@ -1958,6 +1970,7 @@ static void NrmVec(double u[3])
       u[i] *= dp;
 }
 
+// Dot Product
 static double DotPrd(double u[3], double v[3])
 {
    int i;
@@ -1969,6 +1982,7 @@ static double DotPrd(double u[3], double v[3])
    return(dp);
 }
 
+// Cross product
 static void CrsPrd(double u[3], double v[3], double w[3])
 {
    w[0] = u[1] * v[2] - u[2] * v[1];
@@ -1976,6 +1990,7 @@ static void CrsPrd(double u[3], double v[3], double w[3])
    w[2] = u[0] * v[1] - u[1] * v[0];
 }
 
+// Linear combinaison: W = a*U + b*V
 static void LinCmbVec3(double w1, double v1[3], double w2, double v2[3], double v3[3])
 {
    int i;
@@ -1984,6 +1999,7 @@ static void LinCmbVec3(double w1, double v1[3], double w2, double v2[3], double 
       v3[i] = w1 * v1[i] + w2 * v2[i];
 }
 
+// V = U
 static void CpyVec(double u[3], double v[3])
 {
    int i;
@@ -1992,6 +2008,7 @@ static void CpyVec(double u[3], double v[3])
       v[i] = u[i];
 }
 
+// V = V + U
 static void AddVec2(double u[3], double v[3])
 {
    int i;
@@ -2000,6 +2017,7 @@ static void AddVec2(double u[3], double v[3])
       v[i] += u[i];
 }
 
+// U = U + [s;s;s]
 static void AddScaVec1(double s, double u[3])
 {
    int i;
@@ -2008,6 +2026,7 @@ static void AddScaVec1(double s, double u[3])
       u[i] += s;
 }
 
+// V = U + [s;s;s]
 static void AddScaVec2(double s, double u[3], double v[3])
 {
    int i;
@@ -2016,6 +2035,7 @@ static void AddScaVec2(double s, double u[3], double v[3])
       v[i] = u[i] + s;
 }
 
+// U = w*U
 static void MulVec1(const double w, double u[3])
 {
    u[0] *= w;
@@ -2023,6 +2043,7 @@ static void MulVec1(const double w, double u[3])
    u[2] *= w;
 }
 
+// V = w*U
 static void MulVec2(double w, double u[3], double v[3])
 {
    int i;
@@ -2031,6 +2052,7 @@ static void MulVec2(double w, double u[3], double v[3])
       v[i] = w * u[i];
 }
 
+// Return Euclidian norm
 static double GetNrmVec(double u[3])
 {
    return(sqrt(POW(u[0]) + POW(u[1]) + POW(u[2])));
@@ -2038,6 +2060,7 @@ static double GetNrmVec(double u[3])
 
 
 /*----------------------------------------------------------------------------*/
+/* Allocate a chunk of memory and link it to memory allocator's list          */
 /*----------------------------------------------------------------------------*/
 
 static void *NewMem(OctMshSct *OctMsh, LolInt siz)
@@ -2055,6 +2078,7 @@ static void *NewMem(OctMshSct *OctMsh, LolInt siz)
 
 
 /*----------------------------------------------------------------------------*/
+/* Cylct through the linked list of allocated block and free them all         */
 /*----------------------------------------------------------------------------*/
 
 static void FreAllMem(OctMshSct *OctMsh)

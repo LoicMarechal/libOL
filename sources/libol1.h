@@ -6,10 +6,10 @@
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/* Description:         Octree for mesh localization                          */
-/* Author:              Loic MARECHAL                                         */
-/* Creation date:       mar 16 2012                                           */
-/* Last modification:   jan 27 2017                                           */
+/*    Description:         Octree for mesh localization                       */
+/*    Author:              Loic MARECHAL                                      */
+/*    Creation date:       mar 16 2012                                        */
+/*    Last modification:   jan 30 2017                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -32,10 +32,10 @@ enum TypTag {  LolTypVer, LolTypEdg, LolTypTri, LolTypQad, \
 /* Public procedures                                                          */
 /*----------------------------------------------------------------------------*/
 
-int64_t LolNewOctree(   LolInt, double *, double *, LolInt, LolInt *, LolInt *, \
-                        LolInt, LolInt *, LolInt *, LolInt, LolInt *, LolInt *, \
-                        LolInt, LolInt *, LolInt *, LolInt, LolInt *, LolInt *, \
-                        LolInt, LolInt *, LolInt *, LolInt, LolInt *, LolInt * );
+int64_t LolNewOctree(LolInt, double *, double *, LolInt, LolInt *, LolInt *, \
+                     LolInt, LolInt *, LolInt *, LolInt, LolInt *, LolInt *, \
+                     LolInt, LolInt *, LolInt *, LolInt, LolInt *, LolInt *, \
+                     LolInt, LolInt *, LolInt *, LolInt, LolInt *, LolInt * );
 
 LolInt LolFreeOctree(int64_t);
 LolInt LolGetBoundingBox(  int64_t , LolInt , LolInt, LolInt *, \
