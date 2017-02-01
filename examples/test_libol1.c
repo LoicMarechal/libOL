@@ -56,7 +56,7 @@ int main()
    t = clock();
    puts("\nRead mesh");
 
-   if(!(MshIdx = GmfOpenMesh("test.meshb", GmfRead, &ver, &dim)))
+   if(!(MshIdx = GmfOpenMesh("../sample_meshes/test.meshb", GmfRead, &ver, &dim)))
    {
      puts("Cannot open test.meshb.");
      return(1);

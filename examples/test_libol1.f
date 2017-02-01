@@ -7,7 +7,8 @@
 	  real*8 VerTab(3,10000000), crd1(3), box(3,2), dis
 
 c     Open the mesh file
-      MshIdx = gmfopenmesh('test.meshb',GmfRead,ver,dim)
+      MshIdx = gmfopenmesh('../sample_meshes/test.meshb'
+     +,GmfRead,ver,dim)
       print*, 'MshIdx = ', MshIdx, ' version = ', ver, ' dim = ', dim
 
       if(ver.lt.2) STOP ' version < 2'
