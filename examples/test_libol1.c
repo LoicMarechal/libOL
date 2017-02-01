@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <limits.h>
-#include <libmesh6.h>
+#include <libmeshb7.h>
 #include <libol1.h>
 
 #define BufSiz 100
@@ -75,31 +75,28 @@ int main()
    }
 
    VerTab = malloc((NmbVer+1) * 3 * sizeof(double));
-   GmfGotoKwd(MshIdx, GmfVertices);
-   GmfGetBlock(MshIdx, GmfVertices, \
-               GmfDouble, &VerTab[1][0], &VerTab[2][0], \
-               GmfDouble, &VerTab[1][1], &VerTab[2][1], \
-               GmfDouble, &VerTab[1][2], &VerTab[2][2], \
+   GmfGetBlock(MshIdx, GmfVertices, 1, NmbVer, NULL, \
+               GmfDouble, &VerTab[1][0], &VerTab[ NmbVer ][0], \
+               GmfDouble, &VerTab[1][1], &VerTab[ NmbVer ][1], \
+               GmfDouble, &VerTab[1][2], &VerTab[ NmbVer ][2], \
                GmfInt, &ref, &ref );
 
    if(NmbEdg)
    {
       EdgTab = malloc((NmbEdg+1) * 2 * sizeof(LolInt));
-      GmfGotoKwd(MshIdx, GmfEdges);
-      GmfGetBlock(MshIdx, GmfEdges, \
-                  GmfInt, &EdgTab[1][0], &EdgTab[2][0], \
-                  GmfInt, &EdgTab[1][1], &EdgTab[2][1], \
+      GmfGetBlock(MshIdx, GmfEdges, 1, NmbEdg, NULL, \
+                  GmfInt, &EdgTab[1][0], &EdgTab[ NmbEdg ][0], \
+                  GmfInt, &EdgTab[1][1], &EdgTab[ NmbEdg ][1], \
                   GmfInt, &ref, &ref);
    }
 
    if(NmbTri)
    {
       TriTab = malloc((NmbTri+1) * 3 * sizeof(LolInt));
-      GmfGotoKwd(MshIdx, GmfTriangles);
-      GmfGetBlock(MshIdx, GmfTriangles, \
-                  GmfInt, &TriTab[1][0], &TriTab[2][0], \
-                  GmfInt, &TriTab[1][1], &TriTab[2][1], \
-                  GmfInt, &TriTab[1][2], &TriTab[2][2], \
+      GmfGetBlock(MshIdx, GmfTriangles, 1, NmbTri, NULL, \
+                  GmfInt, &TriTab[1][0], &TriTab[ NmbTri ][0], \
+                  GmfInt, &TriTab[1][1], &TriTab[ NmbTri ][1], \
+                  GmfInt, &TriTab[1][2], &TriTab[ NmbTri ][2], \
                   GmfInt, &ref, &ref );
    }
 

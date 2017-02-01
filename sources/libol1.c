@@ -2100,7 +2100,7 @@ static void FreAllMem(OctMshSct *OctMsh)
 /* Fortran 77 API                                                             */
 /*----------------------------------------------------------------------------*/
 
-int64_t call(LolNewOctreef77)(LolInt *NmbVer, double *VerTab1, double *VerTab2, \
+int64_t call(lolnewoctreef77)(LolInt *NmbVer, double *VerTab1, double *VerTab2, \
                               LolInt *NmbEdg, LolInt *EdgTab1, LolInt *EdgTab2, \
                               LolInt *NmbTri, LolInt *TriTab1, LolInt *TriTab2, \
                               LolInt *NmbQad, LolInt *QadTab1, LolInt *QadTab2, \
@@ -2115,18 +2115,18 @@ int64_t call(LolNewOctreef77)(LolInt *NmbVer, double *VerTab1, double *VerTab2, 
                         *NmbPri, PriTab1, PriTab2, *NmbHex, HexTab1, HexTab2 ));
 }
 
-LolInt call(LolFreeOctreef77)(int64_t *OctIdx)
+LolInt call(lolfreeoctreef77)(int64_t *OctIdx)
 {
    return(LolFreeOctree(*OctIdx));
 }   
 
-LolInt call(LolGetBoundingBoxf77)(int64_t *OctIdx, LolInt *typ, \
+LolInt call(lolgetboundingboxf77)(int64_t *OctIdx, LolInt *typ, \
             LolInt *MaxItm,LolInt *ItmTab, double *MinCrd, double *MaxCrd)
 {
    return(LolGetBoundingBox(*OctIdx, *typ, *MaxItm, ItmTab, MinCrd, MaxCrd));
 }
 
-LolInt call(LolGetNearestf77)(int64_t *OctIdx, LolInt *typ, double *MinCrd, \
+LolInt call(lolgetnearestf77)(int64_t *OctIdx, LolInt *typ, double *MinCrd, \
             double *MinDis, double *MaxDis)
 {
    return(LolGetNearest(*OctIdx, *typ, MinCrd, MinDis, *MaxDis));
