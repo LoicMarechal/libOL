@@ -3,8 +3,8 @@
 
       integer i, j, NmbVer, NmbTri, NmbItm, ver, dim, ref, idx
       integer res, EdgTab(2,10000000), TriTab(3,10000000), buf(10000)
-	  integer*8 mem, MshIdx, OctIdx
-	  real*8 VerTab(3,10000000), crd1(3), box(3,2), dis
+      integer*8 mem, MshIdx, OctIdx
+      real*8 VerTab(3,10000000), crd1(3), box(3,2), dis
 
 c     Open the mesh file
       MshIdx = gmfopenmesh('../sample_meshes/test.meshb'
@@ -18,15 +18,15 @@ c     Check memory bounds
       NmbVer = gmfstatkwd(MshIdx, GmfVertices)
       print*, 'NmbVer = ', NmbVer
       if(NmbVer.le.0) STOP ' NmbVer <= 0'
-	  if(NmbVer.gt.10000000) STOP ' NmbVer > 10000000'
+      if(NmbVer.gt.10000000) STOP ' NmbVer > 10000000'
 
       NmbEdg = gmfstatkwd(MshIdx, GmfEdges)
       print*, 'NmbEdg = ', NmbEdg
-	  if(NmbEdg.gt.10000000) STOP ' NmbEdg > 10000000'
+      if(NmbEdg.gt.10000000) STOP ' NmbEdg > 10000000'
 
       NmbTri = gmfstatkwd(MshIdx, GmfTriangles)
       print*, 'NmbTri = ', NmbTri
-	  if(NmbTri.gt.10000000) STOP ' NmbTri > 10000000'
+      if(NmbTri.gt.10000000) STOP ' NmbTri > 10000000'
 
 c     Read the vertices
       res = gmfgotokwd(MshIdx, GmfVertices)
@@ -60,7 +60,7 @@ c     Build the octree
       OctIdx = lolnewoctreef77(NmbVer, VerTab(1,1), VerTab(1,2)
      +, NmbEdg, EdgTab(1,1), EdgTab(1,2)
      +, NmbTri, TriTab(1,1), TriTab(1,2))
-	  print*, 'OctIdx = ', OctIdx
+      print*, 'OctIdx = ', OctIdx
 
 c     Find the cloest vertex and triangle from a given set of coordinates
       crd1(1) = 0
@@ -85,11 +85,11 @@ c     Find the triangles included in a bounding box
      +box(1,1), box(1,2))
       print*, NmbItm, ' triangles in box ', box(1:3,1), box(1:3,2)
 
-	  do i=1,NmbItm
+      do i=1,NmbItm
          print*, buf(i)
       enddo
 
-	  mem = lolfreeoctreef77(OctIdx)
-	  print*, 'memory used = ', mem
+      mem = lolfreeoctreef77(OctIdx)
+      print*, 'memory used = ', mem
 
       end
