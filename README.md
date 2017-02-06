@@ -9,11 +9,10 @@ L'implémentation qui en est faite favorise une très grande compacité mémoire
 # Compilation
 Entrez les commandes dans l'ordre suivant :
 - désarchivez le fichier ZIP
-- mkdir build
-- cd build
-- cmake .
-- make
-- make install
+- `cd libOL-master`
+- `cmake .`
+- `make`
+- `make install`
 
 # Utilisation
 Il s'agit d'un simple fichier écrit en ANSI C et d'un header associé qu'il suffit d'inclure et de compiler avec son propre code.  
