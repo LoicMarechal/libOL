@@ -1,20 +1,28 @@
-# libOL version 1
-Localisation géométrique rapide par arbre octal
+# libOL version 1.40
+Quick and easy spatial localization with _octree_
 
-# Objectif
-La libOL permet de générer un arbre de localisation autour d'un nuage de points ou d'un ensemble de triangles.  
-Elle retourne une simple étiquette associée à chaque maillage et permet par la suite d'effectuer des requêtes très rapidement afin de retrouver l'entité la plus proche d'une certaine coordonnée ou bien la liste des entités incluses dans une boîte rectangulaire.  
-L'implémentation qui en est faite favorise une très grande compacité mémoire afin de gérer de très gros maillages sur un simple ordinateur portable.
+# Overview
+the libOL first store a mesh made of vertices, edges and triangles in an octree structure with a very small memory footprint.
+Subsequently, you can perform geometrical queries very quickly on this mesh:
+- retrieve the closest entity from a given set of coordinates
+- build the list of mesh entities than are include in a given bounding box
 
-# Compilation
-Entrez les commandes dans l'ordre suivant :
-- désarchivez le fichier ZIP
+# Build
+Simply follow these steps:
+- unarchive the ZIP file
 - `cd libOL-master`
 - `cmake .`
 - `make`
 - `make install`
 
-# Utilisation
-Il s'agit d'un simple fichier écrit en ANSI C et d'un header associé qu'il suffit d'inclure et de compiler avec son propre code.  
-Elle peut être utilisée à partir des langages C, C++, F77 et F90.  
-Elle a été testée sous les systèmes Linux et Mac OS X.
+Optionally, you may download some sample meshes to run the examples:
+- you need to install the [libMeshb](https://github.com/LoicMarechal/libMeshb) from GitHub
+- manually download files from the *Git LFS* repository: [sample files](sample_meshes/)
+- move them into /opt/libOL/sample_meshes/
+- uncompress them with `lzip -d *.meshb.lz`
+- you may now enter /opt/libOL/examples directory and run the various examples
+
+# Usage
+It is made of a single ANSI C file and a header file to be compiled and linked alongside the calling program.  
+It may be used in C, C++, Fortran 77 and 90 programs.  
+Tested on Linux, Mac OS X, and Windows 7-10.
