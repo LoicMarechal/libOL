@@ -6,11 +6,22 @@
 cmake_minimum_required (VERSION 3.0.1)
 set (libOL_VERSION_MAJOR 1)
 set (libOL_VERSION_MINOR 40)
+
+if (WIN32)
+   set (CMAKE_C_FLAGS "-DWIN32")
+   set (CMAKE_CONFIGURATION_TYPES "Release")
+else ()
+   set (CMAKE_C_FLAGS "-O3")
+   set (CMAKE_Fortran_FLAGS "-O3")
+   set (LINK_LIBRARIES "m")
+endif()
+
 project (libOL VERSION ${libOL_VERSION_MAJOR}.${libOL_VERSION_MINOR} LANGUAGES C)
-set (CMAKE_C_FLAGS "-O3")
-set (CMAKE_Fortran_FLAGS "-O3")
-if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-   set (CMAKE_INSTALL_PREFIX "/opt/libOL" CACHE PATH "Default libOL install path" FORCE)
+
+include (CheckLanguage)
+check_language (Fortran)
+if(CMAKE_Fortran_COMPILER)
+  enable_language(Fortran)
 endif()
 
 
@@ -21,9 +32,9 @@ endif()
 include_directories ("${PROJECT_SOURCE_DIR}/sources")
 add_subdirectory (sources)
 
-find_library (MESHB_LIB Meshb.7 PATHS /opt/libMeshb/lib)
-find_library (MESHBF_LIB Meshbf.7 PATHS /opt/libMeshb/lib)
-find_path (MESHB_INC libmeshb7.h PATHS /opt/libMeshb/include)
+find_library (MESHB_LIB Meshb.7 PATHS ${LIBMESHB}/lib)
+find_library (MESHBF_LIB Meshbf.7 PATHS ${LIBMESHB}/lib)
+find_path (MESHB_INC libmeshb7.h PATHS ${LIBMESHB}/include)
 
 if(MESHB_LIB AND MESHBF_LIB AND MESHB_INC)
    include_directories ("${PROJECT_SOURCE_DIR}/examples")

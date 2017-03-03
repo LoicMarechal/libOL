@@ -9,7 +9,7 @@
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   jan 30 2017                                        */
+/*    Last modification:   mar 03 2017                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include "libol1.h"
 
 
