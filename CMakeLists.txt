@@ -32,13 +32,11 @@ endif()
 include_directories ("${PROJECT_SOURCE_DIR}/sources")
 add_subdirectory (sources)
 
-find_library (MESHB_LIB Meshb.7 PATHS ${LIBMESHB}/lib)
-find_library (MESHBF_LIB Meshbf.7 PATHS ${LIBMESHB}/lib)
-find_path (MESHB_INC libmeshb7.h PATHS ${LIBMESHB}/include)
+find_package(libMeshb 7)
 
-if(MESHB_LIB AND MESHBF_LIB AND MESHB_INC)
+if(libMeshb_INCLUDE_DIR)
+   include_directories ("${libMeshb_INCLUDE_DIR}")
    include_directories ("${PROJECT_SOURCE_DIR}/examples")
-   include_directories ("${MESHB_INC}")
    add_subdirectory (examples)
 else()
    message (WARNING "
@@ -62,3 +60,22 @@ set (CPACK_PACKAGE_VERSION_MAJOR "${libOL_VERSION_MAJOR}")
 set (CPACK_PACKAGE_VERSION_MINOR "${libOL_VERSION_MINOR}")
 set(CPACK_COMPONENTS_ALL applications examples libraries headers)
 include (CPack)
+
+
+######################################
+# EXPORT CMAKE PACKAGE INFORMATION
+######################################
+
+include(CMakePackageConfigHelpers)
+file(WRITE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+"set(libOL_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include)
+set(libOL_LIBRARY ${CMAKE_INSTALL_PREFIX}/lib/libOL.${libOL_VERSION_MAJOR}.a)
+")
+write_basic_package_version_file(
+   "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+   VERSION ${PROJECT_VERSION}
+   COMPATIBILITY SameMajorVersion)
+install(FILES
+   "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+   "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+   DESTINATION lib/cmake/${PROJECT_NAME})
