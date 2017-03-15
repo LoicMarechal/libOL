@@ -54,23 +54,31 @@ c     Read the triangles
 
 c     Close the mesh file
       res = gmfclosemesh(MshIdx)
+      print*, '1'
 
 
 c     Build the octree
       OctIdx = lolnewoctreef77(NmbVer, VerTab(1,1), VerTab(1,2)
      +, NmbEdg, EdgTab(1,1), EdgTab(1,2)
-     +, NmbTri, TriTab(1,1), TriTab(1,2))
+     +, NmbTri, TriTab(1,1), TriTab(1,2)
+     +, 0, %val(0), %val(0)
+     +, 0, %val(0), %val(0)
+     +, 0, %val(0), %val(0)
+     +, 0, %val(0), %val(0)
+     +, 0, %val(0), %val(0))
       print*, 'OctIdx = ', OctIdx
 
-c     Find the cloest vertex and triangle from a given set of coordinates
+c     Find the closest vertex and triangle from a given set of coordinates
       crd1(1) = 0
       crd1(2) = 0
       crd1(3) = 0
 
-      idx = lolgetnearestf77(OctIdx, TypVer, crd1, dis, 0)
+      print*, '2'
+      idx = lolgetnearestf77(OctIdx, TypVer, crd1, dis, 0D0)
       print*, 'vertex closest from ', crd1, 'is ', idx
 
-      idx = lolgetnearestf77(OctIdx, TypTri, crd1, dis, 0)
+      print*, '3'
+      idx = lolgetnearestf77(OctIdx, TypTri, crd1, dis, 0D0)
       print*, 'triangle closest from ', crd1, 'is ', idx
 
 c     Find the triangles included in a bounding box

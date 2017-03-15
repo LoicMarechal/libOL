@@ -277,6 +277,7 @@ int64_t LolNewOctree(   LolInt NmbVer, double *PtrCrd1, double *PtrCrd2, \
 
    // Setup a single octant octree
    assert((OctMsh = calloc(1, sizeof(OctMshSct))));
+   printf("NEw OCTREE %p\n",OctMsh);
 
    // Setup the mesh structure
    msh = NewMem(OctMsh, sizeof(MshSct));
@@ -578,12 +579,17 @@ static void GetBox(  OctSct *oct, LolInt typ, LolInt *NmbItm, LolInt MaxItm, \
 LolInt LolGetNearest(int64_t OctIdx, LolInt typ, double VerCrd[3], \
                      double *MinDis, double MaxDis)
 {
+   printf("LolGetNearest: %lld %d %p %g %g\n",OctIdx,typ,VerCrd,*MinDis,MaxDis);
    OctMshSct *OctMsh = (OctMshSct *)OctIdx;
    LolInt i, ins=0, out=0, MinItm = 0, ini[3];
    double MinCrd[3], MaxCrd[3];
+   puts("0.1");
    MshSct *msh = OctMsh->msh;
+   puts("0.2");
    BucSct *IniBuc, *buc, *ngb;
+   puts("0.3");
    OctMsh->tag++;
+   puts("1");
 
    if(MaxDis > 0.)
       *MinDis = MaxDis * MaxDis;
@@ -592,7 +598,6 @@ LolInt LolGetNearest(int64_t OctIdx, LolInt typ, double VerCrd[3], \
 
    // Get the vertex's integer coordinates in the grid
    // and clip it if it stands outside the bounding box
-
    for(i=0;i<3;i++)
    {
       ini[i] = (VerCrd[i] - OctMsh->bnd[0][i]) / OctMsh->BucSiz;
@@ -604,6 +609,7 @@ LolInt LolGetNearest(int64_t OctIdx, LolInt typ, double VerCrd[3], \
                         + ini[1] * OctMsh->NmbBuc + ini[2] ];
 
    // Push the octant containing the starting point on the lifo stack
+   puts("2");
    OctMsh->stk[ ins++ ] = IniBuc;
    IniBuc->tag = OctMsh->tag;
 
@@ -611,6 +617,7 @@ LolInt LolGetNearest(int64_t OctIdx, LolInt typ, double VerCrd[3], \
    // check octant's contents distance against the closest item
    while(ins > out)
    {
+      puts("3");
       buc = OctMsh->stk[ out++ ];
       GetBucBox(OctMsh, buc, MinCrd, MaxCrd);
       GetOctLnk(msh, typ, VerCrd, &MinItm, MinDis, buc->oct, MinCrd, MaxCrd);
@@ -630,8 +637,10 @@ LolInt LolGetNearest(int64_t OctIdx, LolInt typ, double VerCrd[3], \
          }
       }
    }
+   puts("4");
 
    *MinDis = sqrt(*MinDis);
+   puts("5");
 
    return(MinItm);
 }
@@ -2130,5 +2139,6 @@ LolInt call(lolgetboundingboxf77)(int64_t *OctIdx, LolInt *typ, \
 LolInt call(lolgetnearestf77)(int64_t *OctIdx, LolInt *typ, double *MinCrd, \
             double *MinDis, double *MaxDis)
 {
+   printf("lolgetnearestf77, OctIdx = %lld, *OctIdx = %lld\n",OctIdx,*OctIdx);
    return(LolGetNearest(*OctIdx, *typ, MinCrd, MinDis, *MaxDis));
 }
