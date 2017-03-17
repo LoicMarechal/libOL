@@ -9,7 +9,7 @@
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   mar 03 2017                                        */
+/*    Last modification:   mar 17 2017                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -276,7 +276,8 @@ int64_t LolNewOctree(   LolInt NmbVer, double *PtrCrd1, double *PtrCrd2, \
    MshSct *msh;
 
    // Setup a single octant octree
-   assert((OctMsh = calloc(1, sizeof(OctMshSct))));
+   OctMsh = calloc(1, sizeof(OctMshSct));
+   assert(OctMsh);
 
    // Setup the mesh structure
    msh = NewMem(OctMsh, sizeof(MshSct));
@@ -2067,8 +2068,10 @@ static double GetNrmVec(double u[3])
 static void *NewMem(OctMshSct *OctMsh, LolInt siz)
 {
    MemSct *mem;
-   assert((mem = malloc(sizeof(MemSct))));
-   assert((mem->adr = malloc(siz)));
+   mem = malloc(sizeof(MemSct));
+   assert(mem);
+   mem->adr = malloc(siz);
+   assert(mem->adr);
    mem->siz = siz;
    mem->nex = OctMsh->NexMem;
    OctMsh->NexMem = mem;
