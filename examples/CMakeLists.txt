@@ -14,6 +14,6 @@ install (TARGETS test_libol DESTINATION share/libOL/examples COMPONENT examples)
 
 if (CMAKE_Fortran_COMPILER)
    add_executable(test_libol_f77 test_libol1.f)
-   target_link_libraries(test_libol_f77 OL.1 ${libMeshb_Fortran_LIBRARIES})
+   target_link_libraries(test_libol_f77 OL.1 gfortran ${libMeshb_Fortran_LIBRARIES})
    install (TARGETS test_libol_f77 DESTINATION share/libOL/examples COMPONENT examples)
 endif ()

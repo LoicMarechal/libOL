@@ -40,7 +40,7 @@
 int main()
 {
    LolInt i, j, k, cpt=0, NmbVer, NmbEdg, NmbTri, NmbItm, ver, dim;
-   LolInt (*EdgTab)[2], (*TriTab)[3], buf[ BufSiz ], inc=50, ref, idx;
+   LolInt (*EdgTab)[2], (*TriTab)[3], buf[ BufSiz ], inc=100, ref, idx;
    int64_t MshIdx, OctIdx;
    double crd1[3] = {1.16235, 0.147997, -4.38923 };
    double crd2[3] = {0.002928, 0.079575, 0.006978};
