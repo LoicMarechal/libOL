@@ -1,15 +1,27 @@
 
-      external getboundingboxf77
-      external getnearestf77
-      external newoctreef77
-      external freeoctreef77
+      external lolgetboundingbox
+      external lolgetnearest
+      external lolnewoctree
+      external lolfreeoctree
 
-      integer getboundingboxf77
-      integer getnearestf77
-      integer*8 newoctreef77
-      integer*8 freeoctreef77
+      integer lolgetboundingbox
+      integer lolgetnearest
+      integer*8 lolnewoctree
+      integer*8 lolfreeoctree
 
-      integer typver
-      integer typtri
-      parameter (typver=0)
-      parameter (typtri=1)
+      integer loltypver
+      integer loltypedg
+      integer loltyptri
+      integer loltypqad
+      integer loltyptet
+      integer loltyppyr
+      integer loltyppri
+      integer loltyphex
+      parameter (loltypver=0)
+      parameter (loltypedg=1)
+      parameter (loltyptri=2)
+      parameter (loltypqad=3)
+      parameter (loltyptet=4)
+      parameter (loltyppyr=5)
+      parameter (loltyppri=6)
+      parameter (loltyphex=7)
