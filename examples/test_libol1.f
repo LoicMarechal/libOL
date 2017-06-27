@@ -4,6 +4,7 @@
       integer i, j, NmbVer, NmbTri, NmbItm, ver, dim, ref, idx
       integer res, EdgTab(2,10000000), TriTab(3,10000000), buf(10000)
       integer*8 mem, MshIdx, OctIdx
+      real x,y,z
       real*8 VerTab(3,10000000), crd1(3), box(3,2), dis
 
 c     Open the mesh file
@@ -11,7 +12,7 @@ c     Open the mesh file
      +,GmfRead,ver,dim)
       print*, 'MshIdx = ', MshIdx, ' version = ', ver, ' dim = ', dim
 
-      if(ver.lt.2) STOP ' version < 2'
+      if(ver.gt.3) STOP ' version > 3'
       if(dim.ne.3) STOP ' dimension <> 3'
 
 c     Check memory bounds
@@ -31,10 +32,19 @@ c     Check memory bounds
 c     Read the vertices
       res = gmfgotokwd(MshIdx, GmfVertices)
 
-      do i = 1, NmbVer
-          res = gmfgetlin(MshIdx, GmfVertices
-     +,VerTab(1,i), VerTab(2,i), VerTab(3,i), ref)
-      end do
+      if(ver.le.1) then
+         do i = 1, NmbVer
+            res = gmfgetlin(MshIdx, GmfVertices, x, y, z, ref)
+            VerTab(1,i) = x
+            VerTab(2,i) = y
+            VerTab(3,i) = z
+         end do
+      else
+         do i = 1, NmbVer
+            res = gmfgetlin(MshIdx, GmfVertices, VerTab(1,i)
+     +,VerTab(2,i), VerTab(3,i), ref)
+         end do
+      end if
 
 c     Read the edges
       res = gmfgotokwd(MshIdx, GmfEdges)
@@ -73,10 +83,10 @@ c     Find the closest vertex and triangle from a given set of coordinates
       crd1(2) = 0
       crd1(3) = 0
 
-      idx = lolgetnearest(OctIdx, LolTypVer, crd1, dis, 0D0)
+      idx = lolgetnearest(OctIdx, LolTypVer, crd1, dis, 0D0, %val(0))
       print*, 'vertex closest from ', crd1, 'is ', idx
 
-      idx = lolgetnearest(OctIdx, LolTypTri, crd1, dis, 0D0)
+      idx = lolgetnearest(OctIdx, LolTypTri, crd1, dis, 0D0, %val(0))
       print*, 'triangle closest from ', crd1, 'is ', idx
 
 c     Find the triangles included in a bounding box

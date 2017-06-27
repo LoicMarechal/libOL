@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.40                         */
+/*                      LIB OCTREE LOCALISATION V1.52                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   jan 30 2017                                        */
+/*    Last modification:   jun 27 2017                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -21,28 +21,21 @@
 enum TypTag {  LolTypVer, LolTypEdg, LolTypTri, LolTypQad, \
                LolTypTet, LolTypPyr, LolTypPri, LolTypHex, LolNmbTyp };
 
-#ifdef i8
-#define LolInt int64_t
-#else
-#define LolInt int32_t
-#endif
-
 
 /*----------------------------------------------------------------------------*/
 /* Public procedures                                                          */
 /*----------------------------------------------------------------------------*/
 
-int64_t LolNewOctree(LolInt, double *, double *, LolInt, LolInt *, LolInt *, \
-                     LolInt, LolInt *, LolInt *, LolInt, LolInt *, LolInt *, \
-                     LolInt, LolInt *, LolInt *, LolInt, LolInt *, LolInt *, \
-                     LolInt, LolInt *, LolInt *, LolInt, LolInt *, LolInt * );
+int64_t LolNewOctree(int, double *, double *, int, int *, int *, \
+                     int, int *, int *, int, int *, int *, \
+                     int, int *, int *, int, int *, int *, \
+                     int, int *, int *, int, int *, int * );
 
-LolInt LolFreeOctree(int64_t);
-LolInt LolGetBoundingBox(  int64_t , LolInt , LolInt, LolInt *, \
-                           double [3], double [3] );
+size_t  LolFreeOctree(int64_t);
+int     LolGetBoundingBox(int64_t , int , int, int *, double [3], double [3]);
 
-LolInt LolGetNearest(int64_t, LolInt, double [3], double *, double);
-LolInt LolProjectVertex(int64_t, double *, LolInt, LolInt, double *);
+int     LolGetNearest(int64_t, int, double [3], double *, double, int (int));
+int     LolProjectVertex(int64_t, double *, int, int, double *);
 
 
 /*----------------------------------------------------------------------------*/
