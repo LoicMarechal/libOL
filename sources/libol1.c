@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.52                         */
+/*                      LIB OCTREE LOCALISATION V1.53                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   jun 27 2017                                        */
+/*    Last modification:   jul 12 2017                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -130,14 +130,14 @@ typedef struct MemSctPtr
 
 typedef struct
 {
-   VerSct ver[3];
-   EdgSct edg;
-   TriSct tri;
-   QadSct qad;
-   TetSct tet;
-   PyrSct pyr;
-   PriSct pri;
-   HexSct hex;
+   VerSct ver[8], BakVer[8];
+   EdgSct edg, BakEdg;
+   TriSct tri, BakTri;
+   QadSct qad, BakQad;
+   TetSct tet, BakTet;
+   PyrSct pyr, BakPyr;
+   PriSct pri, BakPri;
+   HexSct hex, BakHex;
    char *FlgTab, *UsrPtr[ LolNmbTyp ];
    int UsrSiz[ LolNmbTyp ], NmbItm[ LolNmbTyp ];
    double aniso, eps;
@@ -202,6 +202,8 @@ static double  DisVerOct(double [3], double [3], double [3]);
 static int     VerInsOct(double [3], double [3], double [3]);
 static double *GetPtrCrd(MshSct *, int);
 static char   *GetPtrItm(MshSct *, int, int);
+static void    BakMshItm(MshSct *);
+static void    RstMshItm(MshSct *);
 
 
 /*----------------------------------------------------------------------------*/
@@ -378,7 +380,7 @@ int64_t LolNewOctree(int NmbVer, double *PtrCrd1, double *PtrCrd2, \
    for(i=0;i<12;i++)
    {
       OctMsh->hex.edg[i].ver[0] =  &OctMsh->ver[ tvpe[i][0] ];
-      OctMsh->hex.edg[i].ver[1] =  &OctMsh->ver[ tvpe[i][0] ];
+      OctMsh->hex.edg[i].ver[1] =  &OctMsh->ver[ tvpe[i][1] ];
    }
 
    for(i=0;i<6;i++)
@@ -910,6 +912,9 @@ static void GetOctLnk(  MshSct *msh, int typ, double VerCrd[3], \
          }
          else if(lnk->typ == LolTypTri)
          {
+            if(prc && !prc(lnk->idx))
+               continue;
+
             SetItm(msh, LolTypTri, lnk->idx, 0);
             CurDis = DisVerTri(msh, VerCrd, &msh->tri);
          }
@@ -995,6 +1000,32 @@ static void SetItm(MshSct *msh, int typ, int idx, int flg)
             CpyVec(msh->tet.edg[i].tng, msh->tet.tri[ TetEdgFac[i][1] ].edg[1].tng);
          }
    }
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* Save the local mesh entities into their backup position                    */
+/*----------------------------------------------------------------------------*/
+
+static void BakMshItm(MshSct *msh)
+{
+   memcpy(&msh->BakEdg, &msh->edg, sizeof(EdgSct));
+   memcpy(&msh->BakTri, &msh->tri, sizeof(TriSct));
+   memcpy(&msh->BakTet, &msh->tet, sizeof(TetSct));
+   memcpy(msh->BakVer, msh->ver, 4 * sizeof(VerSct));
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* Restore the local entities from the backup to the current position         */
+/*----------------------------------------------------------------------------*/
+
+static void RstMshItm(MshSct *msh)
+{
+   memcpy(&msh->edg, &msh->BakEdg, sizeof(EdgSct));
+   memcpy(&msh->tri, &msh->BakTri, sizeof(TriSct));
+   memcpy(&msh->tet, &msh->BakTet, sizeof(TetSct));
+   memcpy(msh->ver, msh->BakVer, 4 * sizeof(VerSct));
 }
 
 
@@ -1222,6 +1253,10 @@ static void SubOct(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct, \
    OctMsh->MinSiz = MIN(OctMsh->MinSiz, (MaxCrd[0] - MinCrd[0])/2.);
    OctMsh->MaxLvl = MAX(OctMsh->MaxLvl, oct->lvl+1);
 
+   // Backup the curent mesh local entities that are being tested
+   // as the propagation process will call SetItm an all linked items
+   BakMshItm(msh);
+
    // Now unlink every items from the father and add them to its sons
    while((lnk = OctLnk))
    {
@@ -1255,7 +1290,7 @@ static void SubOct(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct, \
       else if(lnk->typ == LolTypTri)
       {
          // Check the intersection between the triangle and the 8 sons
-         SetItm(msh, LolTypTri, lnk->idx, TngFlg);
+         SetItm(msh, LolTypTri, lnk->idx, TngFlg | AniFlg);
 
          for(i=0;i<8;i++)
          {
@@ -1285,6 +1320,9 @@ static void SubOct(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct, \
       lnk->nex = OctMsh->NexFreLnk;
       OctMsh->NexFreLnk = lnk;
    }
+
+   // Put back the current mesh enities that are being inserted
+   RstMshItm(msh);
 }
 
 
@@ -1296,6 +1334,16 @@ static void LnkItm(OctMshSct *OctMsh, OctSct *oct, int typ, int idx, char ani)
 {
    int i;
    LnkSct *lnk;
+
+
+   lnk = oct->lnk;
+   while(lnk)
+   {
+      if(lnk->typ == typ && lnk->idx == idx)
+         return;
+      lnk = lnk->nex;
+   }
+
 
    // In case nore more link container are availbable, allocate a new bloc
    if(!OctMsh->NexFreLnk)
@@ -1997,7 +2045,6 @@ static double DisVerTri(MshSct *msh, double VerCrd[3], TriSct *tri)
       MulVec1(1./TriSrf, tri->nrm);
 
    SubTri.ver[2] = &img;
-
    dis1 = PrjVerPla(VerCrd, tri->ver[0]->crd, tri->nrm, img.crd);
 
    // Compute the barycentric coordinates and check the projection's position
@@ -2077,10 +2124,7 @@ static double DisVerTet(MshSct *msh, double *VerCrd, TetSct *tet)
    CpyVec(VerCrd, TmpVer.crd);
 
    if(VerInsTet(&TmpVer, tet, msh->eps))
-   {
-      printf("ver in tet %d\n", msh->tet.idx);
       return(0.);
-   }
 
    for(i=0;i<4;i++)
    {
