@@ -9,7 +9,7 @@
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   jul 12 2017                                        */
+/*    Last modification:   aug 07 2017                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -181,25 +181,26 @@ typedef struct
 /*----------------------------------------------------------------------------*/
 
 static void    SetMshBox(OctMshSct *, MshSct *);
-static void    AddVer   (MshSct *, OctMshSct *, OctSct *, double [3], double [3]);
-static void    AddEdg   (MshSct *, OctMshSct *, OctSct *, double [3], double [3]);
-static void    AddTri   (MshSct *, OctMshSct *, OctSct *, double [3], double [3]);
-static void    AddTet   (MshSct *, OctMshSct *, OctSct *, double [3], double [3]);
-static void    SubOct   (MshSct *, OctMshSct *, OctSct *, double [3], double [3]);
+static void    AddVer   (MshSct *, OctMshSct *, OctSct *, double *, double *);
+static void    AddEdg   (MshSct *, OctMshSct *, OctSct *, double *, double *);
+static void    AddTri   (MshSct *, OctMshSct *, OctSct *, double *, double *);
+static void    AddTet   (MshSct *, OctMshSct *, OctSct *, double *, double *);
+static void    SubOct   (MshSct *, OctMshSct *, OctSct *, double *, double *);
 static void    LnkItm   (OctMshSct *, OctSct *, int, int, char);
-static OctSct *GetCrd   (OctSct *, int, double [3], double [3], double [3]);
-static void    GetBox   (OctMshSct *, OctSct *, int, int *, int, int *, \
-                        char *, double [2][3], double, double [3], double [3] );
+static OctSct *GetCrd   (OctSct *, int, double *, double *, double *);
+static void    GetBox   (OctMshSct *, OctSct *, int, int *, int, int *,
+                        char *, double [2][3], double, double *, double * );
 static int     BoxIntBox(double [2][3], double [2][3], double);
 static void    SetItm   (MshSct *, int, int, int);
 static void    AniTri   (MshSct *, int);
-static void    SetSonCrd(int, double [3], double [3], double [3], double [3]);
-static void    GetOctLnk(MshSct *, int, double [3], int *, double *, \
-                        OctSct *, double [3], double [3] , int (int) );
-static void    GetBucBox(OctMshSct *, BucSct *, double [3], double [3]);
+static void    SetSonCrd(int, double *, double *, double *, double *);
+static void    GetOctLnk(MshSct *, int, double *, int *, double *,
+                        OctSct *, double *, double *,
+                        int (void *, int),  void *);
+static void    GetBucBox(OctMshSct *, BucSct *, double *, double *);
 static BucSct *GetBucNgb(OctMshSct *, BucSct *, int);
-static double  DisVerOct(double [3], double [3], double [3]);
-static int     VerInsOct(double [3], double [3], double [3]);
+static double  DisVerOct(double *, double *, double *);
+static int     VerInsOct(double *, double *, double *);
 static double *GetPtrCrd(MshSct *, int);
 static char   *GetPtrItm(MshSct *, int, int);
 static void    BakMshItm(MshSct *);
@@ -211,14 +212,14 @@ static void    RstMshItm(MshSct *);
 /*----------------------------------------------------------------------------*/
 
 static int     EdgIntEdg(EdgSct *, EdgSct *, VerSct *, double);
-static double  DisVerTri(MshSct *, double [3], TriSct *);
-static double  DisVerTet(MshSct *, double [3], TetSct *);
+static double  DisVerTri(MshSct *, double *, TriSct *);
+static double  DisVerTet(MshSct *, double *, TetSct *);
 static double  GetTriSrf(TriSct *);
 static double  GetVolTet(TetSct *);
-static double  DisVerEdg(double [3], EdgSct *);
-static void    GetTriVec(TriSct *, double [3]);
+static double  DisVerEdg(double *, EdgSct *);
+static void    GetTriVec(TriSct *, double *);
 static void    SetTriNrm(TriSct *);
-static void    SetTmpHex(HexSct *, double [3], double [3]);
+static void    SetTmpHex(HexSct *, double *, double *);
 static int     VerInsTet(VerSct *, TetSct *, double);
 static int     VerInsHex(VerSct *, HexSct *);
 static int     EdgIntHex(EdgSct *, HexSct *, double);
@@ -236,23 +237,23 @@ static double  GetTriAni(TriSct *);
 /* Prototypes of geometric procedures                                         */
 /*----------------------------------------------------------------------------*/
 
-static void    PrjVerLin   (double [3], double [3], double [3], double [3]);
-static double  PrjVerPla   (double [3], double [3], double [3], double [3]);
-static void    LinCmbVec3  (double, double [3], double, double [3], double [3]);
-static void    CpyVec      (double [3], double [3]);
-static void    AddVec2     (double [3], double [3]);
-static void    SubVec3     (double [3], double [3], double [3]);
-static void    AddScaVec1  (double, double [3]);
-static void    AddScaVec2  (double, double [3], double [3]);
-static void    MulVec1     (double, double [3]);
-static void    MulVec2     (double, double [3], double [3]);
-static void    NrmVec      (double [3]);
-static void    CrsPrd      (double [3], double [3], double [3]);
-static double  DotPrd      (double [3], double [3]);
-static double  dis         (double [3], double [3]);
-static double  DisPow      (double [3], double [3]);
-static double  DisVerPla   (double [3], double [3], double [3]);
-static double  GetNrmVec   (double [3]);
+static void    PrjVerLin   (double *, double *, double *, double *);
+static double  PrjVerPla   (double *, double *, double *, double *);
+static void    LinCmbVec3  (double, double *, double, double *, double *);
+static void    CpyVec      (double *, double *);
+static void    AddVec2     (double *, double *);
+static void    SubVec3     (double *, double *, double *);
+static void    AddScaVec1  (double, double *);
+static void    AddScaVec2  (double, double *, double *);
+static void    MulVec1     (double, double *);
+static void    MulVec2     (double, double *, double *);
+static void    NrmVec      (double *);
+static void    CrsPrd      (double *, double *, double *);
+static double  DotPrd      (double *, double *);
+static double  dis         (double *, double *);
+static double  DisPow      (double *, double *);
+static double  DisVerPla   (double *, double *, double *);
+static double  GetNrmVec   (double *);
 
 
 /*----------------------------------------------------------------------------*/
@@ -267,22 +268,22 @@ static void FreAllMem(OctMshSct *);
 /* Allocate and build a new octree from user's data                           */
 /*----------------------------------------------------------------------------*/
 
-int64_t LolNewOctree(int NmbVer, double *PtrCrd1, double *PtrCrd2, \
-                     int NmbEdg, int *PtrEdg1, int *PtrEdg2, \
-                     int NmbTri, int *PtrTri1, int *PtrTri2, \
-                     int NmbQad, int *PtrQad1, int *PtrQad2, \
-                     int NmbTet, int *PtrTet1, int *PtrTet2, \
-                     int NmbPyr, int *PtrPyr1, int *PtrPyr2, \
-                     int NmbPri, int *PtrPri1, int *PtrPri2, \
+int64_t LolNewOctree(int NmbVer, double *PtrCrd1, double *PtrCrd2,
+                     int NmbEdg, int *PtrEdg1, int *PtrEdg2,
+                     int NmbTri, int *PtrTri1, int *PtrTri2,
+                     int NmbQad, int *PtrQad1, int *PtrQad2,
+                     int NmbTet, int *PtrTet1, int *PtrTet2,
+                     int NmbPyr, int *PtrPyr1, int *PtrPyr2,
+                     int NmbPri, int *PtrPri1, int *PtrPri2,
                      int NmbHex, int *PtrHex1, int *PtrHex2 )
 {
    int i, j, k, EdgIdx, TotItmCnt = 0, MaxItmCnt = NmbVer;
    const int TetEdg[6][2] = { {0,1}, {0,2}, {0,3}, {1,2}, {1,3}, {2,3} };
    const int TetFac[4][3] = { {1,2,3}, {2,0,3}, {3,0,1}, {0,2,1} };
    const int TetFacEdg[4][3] = { {5,4,3}, {2,5,1}, {0,4,2}, {3,1,0} };
-   const int tvpe[12][2] = {  {3,2}, {0,1}, {4,5}, {7,6}, {3,7}, {2,6}, \
+   const int tvpe[12][2] = {  {3,2}, {0,1}, {4,5}, {7,6}, {3,7}, {2,6},
                               {1,5}, {0,4}, {3,0}, {7,4}, {6,5}, {2,1} };
-   const int tvpf[6][4] = {   {3,0,4,7}, {5,1,2,6}, {3,2,1,0}, \
+   const int tvpf[6][4] = {   {3,0,4,7}, {5,1,2,6}, {3,2,1,0},
                               {5,6,7,4},{3,7,6,2}, {5,4,0,1} };
    double crd[3];
    BucSct *buc;
@@ -469,7 +470,7 @@ int64_t LolNewOctree(int NmbVer, double *PtrCrd1, double *PtrCrd2, \
          for(k=0;k<OctMsh->NmbBuc;k++)
          {
             buc = &OctMsh->grd[ i * POW(OctMsh->NmbBuc) + j * OctMsh->NmbBuc + k ];
-            buc->oct = GetCrd(&OctMsh->oct, OctMsh->GrdLvl, \
+            buc->oct = GetCrd(&OctMsh->oct, OctMsh->GrdLvl,
                               crd, OctMsh->bnd[0], OctMsh->bnd[1]);
             buc->pos[0] = i;
             buc->pos[1] = j;
@@ -510,15 +511,15 @@ size_t LolFreeOctree(int64_t OctIdx)
 /* Search the octree for triangles included in this box                       */
 /*----------------------------------------------------------------------------*/
 
-int LolGetBoundingBox(  int64_t OctIdx, int typ, int MaxItm, \
+int LolGetBoundingBox(  int64_t OctIdx, int typ, int MaxItm,
                         int *ItmTab, double MinCrd[3], double MaxCrd[3] )
 {
    int i, NmbItm = 0;
-   double box[2][3] = { {MinCrd[0], MinCrd[1], MinCrd[2]}, \
+   double box[2][3] = { {MinCrd[0], MinCrd[1], MinCrd[2]},
                         {MaxCrd[0], MaxCrd[1], MaxCrd[2]} };
    OctMshSct *OctMsh = (OctMshSct *)OctIdx;
 
-   GetBox(  OctMsh, &OctMsh->oct, typ, &NmbItm, MaxItm, ItmTab, \
+   GetBox(  OctMsh, &OctMsh->oct, typ, &NmbItm, MaxItm, ItmTab,
             OctMsh->msh->FlgTab, box, OctMsh->eps, OctMsh->bnd[0], OctMsh->bnd[1] );
 
    for(i=0;i<NmbItm;i++)
@@ -532,7 +533,7 @@ int LolGetBoundingBox(  int64_t OctIdx, int typ, int MaxItm, \
 /* Recusrsive coordinates search                                              */
 /*----------------------------------------------------------------------------*/
 
-static OctSct *GetCrd(  OctSct *oct, int MaxLvl, double VerCrd[3], \
+static OctSct *GetCrd(  OctSct *oct, int MaxLvl, double VerCrd[3],
                         double MinCrd[3], double MaxCrd[3] )
 {
    int SonIdx;
@@ -565,8 +566,8 @@ static OctSct *GetCrd(  OctSct *oct, int MaxLvl, double VerCrd[3], \
 /* Recusrsive box search                                                      */
 /*----------------------------------------------------------------------------*/
 
-static void GetBox(  OctMshSct *OctMsh, OctSct *oct, int typ, int *NmbItm, \
-                     int MaxItm, int *ItmTab, char *FlgTab, double box[2][3], \
+static void GetBox(  OctMshSct *OctMsh, OctSct *oct, int typ, int *NmbItm,
+                     int MaxItm, int *ItmTab, char *FlgTab, double box[2][3],
                      double eps, double MinCrd[3], double MaxCrd[3] )
 {
    int i;
@@ -576,13 +577,13 @@ static void GetBox(  OctMshSct *OctMsh, OctSct *oct, int typ, int *NmbItm, \
    double ymid = (MinCrd[1] + MaxCrd[1])/2.;
    double zmid = (MinCrd[2] + MaxCrd[2])/2.;
    double son[8][2][3] = { \
-      { {MinCrd[0], MinCrd[1], MinCrd[2]}, {xmid, ymid, zmid} }, \
-      { {xmid, MinCrd[1], MinCrd[2]}, {MaxCrd[0], ymid, zmid} }, \
-      { {MinCrd[0], ymid, MinCrd[2]}, {xmid, MaxCrd[1], zmid} }, \
-      { {xmid, ymid, MinCrd[2]}, {MaxCrd[0], MaxCrd[1], zmid} }, \
-      { {MinCrd[0], MinCrd[1], zmid}, {xmid, ymid, MaxCrd[2]} }, \
-      { {xmid, MinCrd[1], zmid}, {MaxCrd[0], ymid, MaxCrd[2]} }, \
-      { {MinCrd[0], ymid, zmid}, {xmid, MaxCrd[1], MaxCrd[2]} }, \
+      { {MinCrd[0], MinCrd[1], MinCrd[2]}, {xmid, ymid, zmid} },
+      { {xmid, MinCrd[1], MinCrd[2]}, {MaxCrd[0], ymid, zmid} },
+      { {MinCrd[0], ymid, MinCrd[2]}, {xmid, MaxCrd[1], zmid} },
+      { {xmid, ymid, MinCrd[2]}, {MaxCrd[0], MaxCrd[1], zmid} },
+      { {MinCrd[0], MinCrd[1], zmid}, {xmid, ymid, MaxCrd[2]} },
+      { {xmid, MinCrd[1], zmid}, {MaxCrd[0], ymid, MaxCrd[2]} },
+      { {MinCrd[0], ymid, zmid}, {xmid, MaxCrd[1], MaxCrd[2]} },
       { {xmid, ymid, zmid}, {MaxCrd[0], MaxCrd[1], MaxCrd[2]} } };
 
    if(oct->sub)
@@ -590,7 +591,7 @@ static void GetBox(  OctMshSct *OctMsh, OctSct *oct, int typ, int *NmbItm, \
       // Recursively intersect the box with the octree
       for(i=0;i<8;i++)
          if(BoxIntBox(box, son[i], eps))
-            GetBox(  OctMsh, oct->son+i, typ, NmbItm, MaxItm, ItmTab, FlgTab, \
+            GetBox(  OctMsh, oct->son+i, typ, NmbItm, MaxItm, ItmTab, FlgTab,
                      box, eps, son[i][0], son[i][1] );
    }
    else if((lnk = oct->lnk) && (*NmbItm < MaxItm) )
@@ -646,8 +647,9 @@ static void GetBox(  OctMshSct *OctMsh, OctSct *oct, int typ, int *NmbItm, \
 /* Search for the nearest item from a vertex in the octree                    */
 /*----------------------------------------------------------------------------*/
 
-int LolGetNearest(int64_t OctIdx, int typ, double VerCrd[3], \
-                  double *MinDis, double MaxDis, int (prc)(int))
+int LolGetNearest(int64_t OctIdx, int typ, double VerCrd[3],
+                  double *MinDis, double MaxDis,
+                  int (UsrPrc)(void *, int), void *UsrDat)
 {
    OctMshSct *OctMsh = (OctMshSct *)OctIdx;
    int i, ins=0, out=0, MinItm = 0, ini[3];
@@ -684,7 +686,8 @@ int LolGetNearest(int64_t OctIdx, int typ, double VerCrd[3], \
    {
       buc = OctMsh->stk[ out++ ];
       GetBucBox(OctMsh, buc, MinCrd, MaxCrd);
-      GetOctLnk(msh, typ, VerCrd, &MinItm, MinDis, buc->oct, MinCrd, MaxCrd, prc);
+      GetOctLnk(  msh, typ, VerCrd, &MinItm, MinDis, buc->oct,
+                  MinCrd, MaxCrd, UsrPrc, UsrDat );
 
       // Push unprocessed neighbours on the stack as long as they are not too far
       for(i=0;i<6;i++)
@@ -712,7 +715,7 @@ int LolGetNearest(int64_t OctIdx, int typ, double VerCrd[3], \
 /* Project a vertex on a given enitity: vertex, edge or triangle              */
 /*----------------------------------------------------------------------------*/
 
-int LolProjectVertex(int64_t OctIdx, double *VerCrd, \
+int LolProjectVertex(int64_t OctIdx, double *VerCrd,
                      int typ, int MinItm, double *MinCrd)
 {
    OctMshSct *OctMsh = (OctMshSct *)OctIdx;
@@ -799,7 +802,7 @@ int LolProjectVertex(int64_t OctIdx, double *VerCrd, \
 /* Extract the bounding box from a grid's bucket                              */
 /*----------------------------------------------------------------------------*/
 
-static void GetBucBox(  OctMshSct *OctMsh, BucSct *buc, \
+static void GetBucBox(  OctMshSct *OctMsh, BucSct *buc,
                         double MinCrd[3], double MaxCrd[3] )
 {
    int i;
@@ -873,9 +876,10 @@ static double DisVerOct(double VerCrd[3], double MinCrd[3], double MaxCrd[3])
 /* Search for the nearest item from a vertex from an octant                   */
 /*----------------------------------------------------------------------------*/
 
-static void GetOctLnk(  MshSct *msh, int typ, double VerCrd[3], \
-                        int *MinItm, double *MinDis, OctSct *oct, \
-                        double MinCrd[3], double MaxCrd[3], int (prc)(int) )
+static void GetOctLnk(  MshSct *msh, int typ, double VerCrd[3],
+                        int *MinItm, double *MinDis, OctSct *oct,
+                        double MinCrd[3], double MaxCrd[3],
+                        int (UsrPrc)(void *, int), void *UsrDat )
 {
    int i, *IdxTab;
    double CurDis, SonMin[3], SonMax[3];
@@ -891,7 +895,8 @@ static void GetOctLnk(  MshSct *msh, int typ, double VerCrd[3], \
          SetSonCrd(i, SonMin, SonMax, MinCrd, MaxCrd);
 
          if(DisVerOct(VerCrd, SonMin, SonMax) <= *MinDis)
-            GetOctLnk(msh, typ, VerCrd, MinItm, MinDis, oct->son+i, SonMin, SonMax, prc);
+            GetOctLnk(  msh, typ, VerCrd, MinItm, MinDis, oct->son+i,
+                        SonMin, SonMax, UsrPrc, UsrDat );
       }
    }
    else if((lnk = oct->lnk))
@@ -900,7 +905,7 @@ static void GetOctLnk(  MshSct *msh, int typ, double VerCrd[3], \
       // between its linked enities and the vertex
       do
       {
-         if( (lnk->typ != typ) || (prc && !prc(lnk->idx)) )
+         if(lnk->typ != typ)
             continue;
 
          if(lnk->typ == LolTypVer)
@@ -912,7 +917,7 @@ static void GetOctLnk(  MshSct *msh, int typ, double VerCrd[3], \
          }
          else if(lnk->typ == LolTypTri)
          {
-            if(prc && !prc(lnk->idx))
+            if(UsrPrc && !UsrPrc(UsrDat, lnk->idx))
                continue;
 
             SetItm(msh, LolTypTri, lnk->idx, 0);
@@ -1081,7 +1086,7 @@ static void SetMshBox(OctMshSct *box, MshSct *msh)
 /* Add a vertex to leaf octants                                               */
 /*----------------------------------------------------------------------------*/
 
-static void AddVer(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct, \
+static void AddVer(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct,
                      double MinCrd[3], double MaxCrd[3] )
 {
    int i;
@@ -1114,7 +1119,7 @@ static void AddVer(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct, \
 /* Add an edge to leaf octants                                                */
 /*----------------------------------------------------------------------------*/
 
-static void AddEdg(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct, \
+static void AddEdg(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct,
                      double MinCrd[3], double MaxCrd[3] )
 {
    int i;
@@ -1148,7 +1153,7 @@ static void AddEdg(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct, \
 /* Add a triangle to leaf octants                                             */
 /*----------------------------------------------------------------------------*/
 
-static void AddTri(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct, \
+static void AddTri(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct,
                      double MinCrd[3], double MaxCrd[3] )
 {
    int i;
@@ -1182,7 +1187,7 @@ static void AddTri(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct, \
 /* Add a tetrahedron to leaf octants                                          */
 /*----------------------------------------------------------------------------*/
 
-static void AddTet(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct, \
+static void AddTet(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct,
                      double MinCrd[3], double MaxCrd[3] )
 {
    int i;
@@ -1216,7 +1221,7 @@ static void AddTet(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct, \
 /* Subdivide an octant and its content to its sons                            */
 /*----------------------------------------------------------------------------*/
 
-static void SubOct(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct, \
+static void SubOct(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct,
                      double MinCrd[3], double MaxCrd[3] )
 {
    int i, j, *IdxTab;
@@ -1390,7 +1395,7 @@ static void LnkItm(OctMshSct *OctMsh, OctSct *oct, int typ, int idx, char ani)
 /* Build an octant strucutre from the two corner points                       */
 /*----------------------------------------------------------------------------*/
 
-static void SetSonCrd(  int SonIdx, double SonMin[3], double SonMax[3], \
+static void SetSonCrd(  int SonIdx, double SonMin[3], double SonMax[3],
                         double MinCrd[3], double MaxCrd[3] )
 {
    double MidCrd[3];
@@ -1748,7 +1753,7 @@ static int VerInsHex(VerSct *ver, HexSct *hex)
 /* Test if an edge intersects a quad                                          */
 /*----------------------------------------------------------------------------*/
 
-static int EdgIntQad(HexSct *hex, int FacIdx, EdgSct *edg, \
+static int EdgIntQad(HexSct *hex, int FacIdx, EdgSct *edg,
                      VerSct *IntVer, double eps)
 {
    int i, NmbVer = 0;
@@ -1782,7 +1787,7 @@ static int EdgIntQad(HexSct *hex, int FacIdx, EdgSct *edg, \
          if(sgn[0] * sgn[1] < 0)
          {
             LinCmbVec3( fabs(sgn[0]) / (fabs(sgn[0]) \
-                     +  fabs(sgn[1])), edg->ver[1]->crd, \
+                     +  fabs(sgn[1])), edg->ver[1]->crd,
                         fabs(sgn[1]) / (fabs(sgn[0]) \
                      +  fabs(sgn[1])), edg->ver[0]->crd, IntVer->crd);
 
@@ -1853,7 +1858,7 @@ static int EdgIntTri(TriSct *tri, EdgSct *edg, VerSct *IntVer, double eps)
          if(sgn[0] * sgn[1] < 0)
          {
             LinCmbVec3( fabs(sgn[0]) / (fabs(sgn[0]) \
-                     +  fabs(sgn[1])), edg->ver[1]->crd, \
+                     +  fabs(sgn[1])), edg->ver[1]->crd,
                         fabs(sgn[1]) / (fabs(sgn[0]) \
                      +  fabs(sgn[1])), edg->ver[0]->crd, IntVer->crd);
 
@@ -1963,7 +1968,7 @@ static int EdgIntEdg(EdgSct *edg1, EdgSct *edg2, VerSct *IntVer, double eps)
    // This leads to 3 possible cases
    if(NmbVer < 2)
    {
-      LinCmbVec3( siz[0]/(siz[0]+siz[1]), edg2->ver[1]->crd, \
+      LinCmbVec3( siz[0]/(siz[0]+siz[1]), edg2->ver[1]->crd,
                   siz[1]/(siz[0]+siz[1]), edg2->ver[0]->crd, IntVer->crd);
 
       return(VerInsEdg(edg1, IntVer, eps));
@@ -2247,7 +2252,7 @@ static void SetEdgTng(EdgSct *edg)
 /* Compute the normal projection of a point on a line                         */
 /*----------------------------------------------------------------------------*/
 
-static void PrjVerLin(  double VerCrd[3], double LinCrd[3], \
+static void PrjVerLin(  double VerCrd[3], double LinCrd[3],
                         double LinTng[3], double ImgCrd[3] )
 {
    double dp, u[3];
@@ -2263,7 +2268,7 @@ static void PrjVerLin(  double VerCrd[3], double LinCrd[3], \
 /* Compute the normal projection of a vertex on a plane                       */
 /*----------------------------------------------------------------------------*/
 
-static double PrjVerPla(double VerCrd[3], double PlaCrd[3], \
+static double PrjVerPla(double VerCrd[3], double PlaCrd[3],
                         double PlaNrm[3], double ImgCrd[3] )
 {
    double DisPla, u[3];
@@ -2523,18 +2528,18 @@ static void FreAllMem(OctMshSct *OctMsh)
 /* Fortran 77 API                                                             */
 /*----------------------------------------------------------------------------*/
 
-int64_t call(lolnewoctree)(int *NmbVer, double *VerTab1, double *VerTab2, \
-                           int *NmbEdg, int *EdgTab1, int *EdgTab2, \
-                           int *NmbTri, int *TriTab1, int *TriTab2, \
-                           int *NmbQad, int *QadTab1, int *QadTab2, \
-                           int *NmbTet, int *TetTab1, int *TetTab2, \
-                           int *NmbPyr, int *PyrTab1, int *PyrTab2, \
-                           int *NmbPri, int *PriTab1, int *PriTab2, \
+int64_t call(lolnewoctree)(int *NmbVer, double *VerTab1, double *VerTab2,
+                           int *NmbEdg, int *EdgTab1, int *EdgTab2,
+                           int *NmbTri, int *TriTab1, int *TriTab2,
+                           int *NmbQad, int *QadTab1, int *QadTab2,
+                           int *NmbTet, int *TetTab1, int *TetTab2,
+                           int *NmbPyr, int *PyrTab1, int *PyrTab2,
+                           int *NmbPri, int *PriTab1, int *PriTab2,
                            int *NmbHex, int *HexTab1, int *HexTab2 )
 {
-   return(LolNewOctree( *NmbVer, VerTab1, VerTab2, *NmbEdg, EdgTab1, EdgTab2, \
-                        *NmbTri, TriTab1, TriTab2, *NmbQad, QadTab1, QadTab2, \
-                        *NmbTet, TetTab1, TetTab2, *NmbPyr, PyrTab1, PyrTab2, \
+   return(LolNewOctree( *NmbVer, VerTab1, VerTab2, *NmbEdg, EdgTab1, EdgTab2,
+                        *NmbTri, TriTab1, TriTab2, *NmbQad, QadTab1, QadTab2,
+                        *NmbTet, TetTab1, TetTab2, *NmbPyr, PyrTab1, PyrTab2,
                         *NmbPri, PriTab1, PriTab2, *NmbHex, HexTab1, HexTab2 ));
 }
 
@@ -2543,14 +2548,14 @@ int64_t call(lolfreeoctree)(int64_t *OctIdx)
    return(LolFreeOctree(*OctIdx));
 }   
 
-int call(lolgetboundingbox)(int64_t *OctIdx, int *typ, \
+int call(lolgetboundingbox)(int64_t *OctIdx, int *typ,
          int *MaxItm,int *ItmTab, double *MinCrd, double *MaxCrd)
 {
    return(LolGetBoundingBox(*OctIdx, *typ, *MaxItm, ItmTab, MinCrd, MaxCrd));
 }
 
-int call(lolgetnearest)(int64_t *OctIdx, int *typ, double *MinCrd, \
-            double *MinDis, double *MaxDis, void *prc)
+int call(lolgetnearest)(int64_t *OctIdx, int *typ, double *MinCrd,
+            double *MinDis, double *MaxDis, void *UsrPrc, void *UsrDat)
 {
-   return(LolGetNearest(*OctIdx, *typ, MinCrd, MinDis, *MaxDis, prc));
+   return(LolGetNearest(*OctIdx, *typ, MinCrd, MinDis, *MaxDis, UsrPrc, UsrDat));
 }

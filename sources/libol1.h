@@ -9,7 +9,7 @@
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   jun 27 2017                                        */
+/*    Last modification:   aug 07 2017                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -26,15 +26,16 @@ enum TypTag {  LolTypVer, LolTypEdg, LolTypTri, LolTypQad, \
 /* Public procedures                                                          */
 /*----------------------------------------------------------------------------*/
 
-int64_t LolNewOctree(int, double *, double *, int, int *, int *, \
-                     int, int *, int *, int, int *, int *, \
-                     int, int *, int *, int, int *, int *, \
+int64_t LolNewOctree(int, double *, double *, int, int *, int *,
+                     int, int *, int *, int, int *, int *,
+                     int, int *, int *, int, int *, int *,
                      int, int *, int *, int, int *, int * );
 
 size_t  LolFreeOctree(int64_t);
 int     LolGetBoundingBox(int64_t , int , int, int *, double [3], double [3]);
 
-int     LolGetNearest(int64_t, int, double [3], double *, double, int (int));
+int     LolGetNearest(  int64_t, int, double [3], double *, 
+                        double, int (void *, int), void * );
 int     LolProjectVertex(int64_t, double *, int, int, double *);
 
 
