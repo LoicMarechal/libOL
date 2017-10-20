@@ -149,7 +149,7 @@ int main()
    if(NmbEdg)
    {
       puts("\nSearch for the closest edge from a given point :");
-      idx = LolGetNearest(OctIdx, LolTypEdg, crd1, &dis, 0., NULL);
+      idx = LolGetNearest(OctIdx, LolTypEdg, crd1, &dis, 0., NULL, NULL);
       printf(" closest edge = %d (%d - %d), distance = %g\n", \
                idx, EdgTab[ idx ][0], EdgTab[ idx ][1], dis);
       LolProjectVertex(OctIdx, crd1, LolTypEdg, idx, MinCrd);
@@ -171,7 +171,7 @@ int main()
          printf(" triangle : %d\n", buf[i]);
 
       puts("\nSearch for the closest triangle from a given point :");
-      idx = LolGetNearest(OctIdx, LolTypTri, crd1, &dis, 0., NULL);
+      idx = LolGetNearest(OctIdx, LolTypTri, crd1, &dis, 0., NULL, NULL);
       printf(" closest triangle = %d, distance = %g\n", idx, dis);
       LolProjectVertex(OctIdx, crd1, LolTypTri, idx, MinCrd);
       printf(" projection on the closest triangle: %g %g %g\n", \
@@ -206,7 +206,7 @@ int main()
             for(k=0;k<inc;k++)
             {
                t2 = clock();
-               idx = LolGetNearest(OctIdx, LolTypTri, crd1, &dis, .005, NULL);
+               idx = LolGetNearest(OctIdx, LolTypTri, crd1, &dis, .005, NULL, NULL);
                t2 = clock() - t2;
                MinTim = MIN(MinTim, t2);
                MaxTim = MAX(MaxTim, t2);
@@ -230,7 +230,7 @@ int main()
       crd1[0] = 0.5;
       crd1[1] = 0.;
       crd1[2] = 0.;
-      idx = LolGetNearest(OctIdx, LolTypTet, crd1, &dis, 0., NULL);
+      idx = LolGetNearest(OctIdx, LolTypTet, crd1, &dis, 0., NULL, NULL);
       printf("tetra %d, dis = %g\n", idx, dis);
 
       MinCrd[0] = -2;

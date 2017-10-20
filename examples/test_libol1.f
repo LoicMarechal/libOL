@@ -83,10 +83,10 @@ c     Find the closest vertex and triangle from a given set of coordinates
       crd1(2) = 0
       crd1(3) = 0
 
-      idx = lolgetnearest(OctIdx, LolTypVer, crd1, dis, 0D0, %val(0))
+      idx = lolgetnearest(OctIdx,LolTypVer,crd1,dis,0D0,%val(0),%val(0))
       print*, 'vertex closest from ', crd1, 'is ', idx
 
-      idx = lolgetnearest(OctIdx, LolTypTri, crd1, dis, 0D0, %val(0))
+      idx = lolgetnearest(OctIdx,LolTypTri,crd1,dis,0D0,%val(0),%val(0))
       print*, 'triangle closest from ', crd1, 'is ', idx
 
 c     Find the triangles included in a bounding box
