@@ -39,12 +39,12 @@
 #define MinGrdLvl 3
 #define ItmPerBuc 100
 #define MemBlkSiz 100000
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
-#define POW(a) ((a)*(a))
-#define CUB(a) ((a)*(a)*(a))
-#define TngFlg 1
-#define AniFlg 2
+#define MIN(a,b)  ((a) < (b) ? (a) : (b))
+#define MAX(a,b)  ((a) > (b) ? (a) : (b))
+#define POW(a)    ((a)*(a))
+#define CUB(a)    ((a)*(a)*(a))
+#define TngFlg    1
+#define AniFlg    2
 
 
 /*----------------------------------------------------------------------------*/
@@ -53,94 +53,94 @@
 
 typedef struct
 {
-   int idx;
-   double crd[3];
+   int      idx;
+   double   crd[3];
 }VerSct;
 
 typedef struct
 {
-   VerSct *ver[2];
-   double tng[3], siz;
-   int idx;
+   VerSct  *ver[2];
+   double   tng[3], siz;
+   int      idx;
 }EdgSct;
 
 typedef struct
 {
-   EdgSct edg[3];
-   VerSct *ver[3];
-   double nrm[3];
-   int idx;
-   float ani;
+   EdgSct   edg[3];
+   VerSct  *ver[3];
+   double   nrm[3];
+   int      idx;
+   float    ani;
 }TriSct;
 
 typedef struct
 {
-   VerSct *ver[4];
-   EdgSct edg[4];
-   TriSct tri[2];
-   double nrm[3];
-   int idx;
+   VerSct  *ver[4];
+   EdgSct   edg[4];
+   TriSct   tri[2];
+   double   nrm[3];
+   int      idx;
 }QadSct;
 
 typedef struct
 {
-   VerSct *ver[4];
-   EdgSct edg[6];
-   TriSct tri[4];
-   int idx;
-   float ani;
+   VerSct  *ver[4];
+   EdgSct   edg[6];
+   TriSct   tri[4];
+   int      idx;
+   float    ani;
 }TetSct;
 
 typedef struct
 {
-   VerSct *ver[5];
-   EdgSct edg[8];
-   TriSct tri[5][2];
-   int idx;
+   VerSct  *ver[5];
+   EdgSct   edg[8];
+   TriSct   tri[5][2];
+   int      idx;
 }PyrSct;
 
 typedef struct
 {
-   VerSct *ver[6];
-   EdgSct edg[9];
-   TriSct tri[5][2];
-   int idx;
+   VerSct  *ver[6];
+   EdgSct   edg[9];
+   TriSct   tri[5][2];
+   int      idx;
 }PriSct;
 
 typedef struct
 {
-   VerSct *ver[8];
-   EdgSct edg[12];
-   QadSct qad[6];
-   int idx;
+   VerSct  *ver[8];
+   EdgSct   edg[12];
+   QadSct   qad[6];
+   int      idx;
 }HexSct;
 
 typedef struct LnkSctPtr
 {
-   int typ, idx;
-   struct LnkSctPtr *nex;
+   int      typ, idx;
+   struct   LnkSctPtr *nex;
 }LnkSct;
 
 typedef struct MemSctPtr
 {
-   size_t siz;
-   void *adr;
-   struct MemSctPtr *nex;
+   size_t   siz;
+   void    *adr;
+   struct   MemSctPtr *nex;
 }MemSct;
 
 typedef struct
 {
-   VerSct ver[8], BakVer[8];
-   EdgSct edg, BakEdg;
-   TriSct tri, BakTri;
-   QadSct qad, BakQad;
-   TetSct tet, BakTet;
-   PyrSct pyr, BakPyr;
-   PriSct pri, BakPri;
-   HexSct hex, BakHex;
-   char *FlgTab, *UsrPtr[ LolNmbTyp ];
-   int UsrSiz[ LolNmbTyp ], NmbItm[ LolNmbTyp ];
-   double aniso, eps;
+   VerSct   ver[8], BakVer[8];
+   EdgSct   edg, BakEdg;
+   TriSct   tri, BakTri;
+   QadSct   qad, BakQad;
+   TetSct   tet, BakTet;
+   PyrSct   pyr, BakPyr;
+   PriSct   pri, BakPri;
+   HexSct   hex, BakHex;
+   char    *FlgTab, *UsrPtr[ LolNmbTyp ];
+   int      UsrSiz[ LolNmbTyp ], NmbItm[ LolNmbTyp ];
+   double   aniso, eps;
 }MshSct;
 
 typedef struct OctSctPtr
@@ -155,24 +155,24 @@ typedef struct OctSctPtr
 
 typedef struct
 {
-   OctSct *oct;
+   OctSct  *oct;
    unsigned int tag;
-   char pos[3];
+   char     pos[3];
 }BucSct;
 
 typedef struct
 {
-   VerSct ver[8];
-   HexSct hex;
+   VerSct   ver[8];
+   HexSct   hex;
    unsigned int tag;
-   int MaxLvl, NmbFreOct, NmbOct, GrdLvl, NmbBuc;
-   size_t MemUse;
-   double eps, MaxSiz, MinSiz, BucSiz, bnd[2][3];
-   OctSct oct, *CurOctBlk;
-   BucSct *grd, **stk;
-   MshSct *msh;
-   LnkSct *NexFreLnk;
-   MemSct *NexMem;
+   int      MaxLvl, NmbFreOct, NmbOct, GrdLvl, NmbBuc;
+   size_t   MemUse;
+   double   eps, MaxSiz, MinSiz, BucSiz, bnd[2][3];
+   OctSct   oct, *CurOctBlk;
+   BucSct   *grd, **stk;
+   MshSct   *msh;
+   LnkSct   *NexFreLnk;
+   MemSct   *NexMem;
 }OctMshSct;
 
 
@@ -180,57 +180,57 @@ typedef struct
 /* Prototypes of octree procedures                                            */
 /*----------------------------------------------------------------------------*/
 
-static void    SetMshBox(OctMshSct *, MshSct *);
-static void    AddVer   (MshSct *, OctMshSct *, OctSct *, double *, double *);
-static void    AddEdg   (MshSct *, OctMshSct *, OctSct *, double *, double *);
-static void    AddTri   (MshSct *, OctMshSct *, OctSct *, double *, double *);
-static void    AddTet   (MshSct *, OctMshSct *, OctSct *, double *, double *);
-static void    SubOct   (MshSct *, OctMshSct *, OctSct *, double *, double *);
-static void    LnkItm   (OctMshSct *, OctSct *, int, int, char);
-static OctSct *GetCrd   (OctSct *, int, double *, double *, double *);
-static void    GetBox   (OctMshSct *, OctSct *, int, int *, int, int *,
-                        char *, double [2][3], double, double *, double * );
-static int     BoxIntBox(double [2][3], double [2][3], double);
-static void    SetItm   (MshSct *, int, int, int);
-static void    AniTri   (MshSct *, int);
-static void    SetSonCrd(int, double *, double *, double *, double *);
-static void    GetOctLnk(MshSct *, int, double *, int *, double *,
-                        OctSct *, double *, double *,
-                        int (void *, int),  void *);
-static void    GetBucBox(OctMshSct *, BucSct *, double *, double *);
-static BucSct *GetBucNgb(OctMshSct *, BucSct *, int);
-static double  DisVerOct(double *, double *, double *);
-static int     VerInsOct(double *, double *, double *);
-static double *GetPtrCrd(MshSct *, int);
-static char   *GetPtrItm(MshSct *, int, int);
-static void    BakMshItm(MshSct *);
-static void    RstMshItm(MshSct *);
+static void    SetMshBox   (OctMshSct *, MshSct *);
+static void    AddVer      (MshSct *, OctMshSct *, OctSct *, double *, double *);
+static void    AddEdg      (MshSct *, OctMshSct *, OctSct *, double *, double *);
+static void    AddTri      (MshSct *, OctMshSct *, OctSct *, double *, double *);
+static void    AddTet      (MshSct *, OctMshSct *, OctSct *, double *, double *);
+static void    SubOct      (MshSct *, OctMshSct *, OctSct *, double *, double *);
+static void    LnkItm      (OctMshSct *, OctSct *, int, int, char);
+static OctSct *GetCrd      (OctSct *, int, double *, double *, double *);
+static void    GetBox      (OctMshSct *, OctSct *, int, int *, int, int *,
+                           char *, double [2][3], double, double *, double * );
+static int     BoxIntBox   (double [2][3], double [2][3], double);
+static void    SetItm      (MshSct *, int, int, int);
+static void    AniTri      (MshSct *, int);
+static void    SetSonCrd   (int, double *, double *, double *, double *);
+static void    GetOctLnk   (MshSct *, int, double *, int *, double *,
+                           OctSct *, double *, double *,
+                           int (void *, int),  void *);
+static void    GetBucBox   (OctMshSct *, BucSct *, double *, double *);
+static BucSct *GetBucNgb   (OctMshSct *, BucSct *, int);
+static double  DisVerOct   (double *, double *, double *);
+static int     VerInsOct   (double *, double *, double *);
+static double *GetPtrCrd   (MshSct *, int);
+static char   *GetPtrItm   (MshSct *, int, int);
+static void    BakMshItm   (MshSct *);
+static void    RstMshItm   (MshSct *);
 
 
 /*----------------------------------------------------------------------------*/
 /* Prototypes of meshing procedures                                           */
 /*----------------------------------------------------------------------------*/
 
-static int     EdgIntEdg(EdgSct *, EdgSct *, VerSct *, double);
-static double  DisVerTri(MshSct *, double *, TriSct *);
-static double  DisVerTet(MshSct *, double *, TetSct *);
-static double  GetTriSrf(TriSct *);
-static double  GetVolTet(TetSct *);
-static double  DisVerEdg(double *, EdgSct *);
-static void    GetTriVec(TriSct *, double *);
-static void    SetTriNrm(TriSct *);
-static void    SetTmpHex(HexSct *, double *, double *);
-static int     VerInsTet(VerSct *, TetSct *, double);
-static int     VerInsHex(VerSct *, HexSct *);
-static int     EdgIntHex(EdgSct *, HexSct *, double);
-static int     TriIntHex(TriSct *, HexSct *, double);
-static int     TetIntHex(TetSct *, HexSct *, double);
-static int     EdgIntQad(HexSct *, int, EdgSct *, VerSct *, double);
-static int     EdgIntTri(TriSct *, EdgSct *, VerSct *, double);
-static int     VerInsTri(TriSct *, VerSct *, double);
-static int     VerInsEdg(EdgSct *, VerSct *, double);
-static void    SetEdgTng(EdgSct *);
-static double  GetTriAni(TriSct *);
+static int     EdgIntEdg   (EdgSct *, EdgSct *, VerSct *, double);
+static double  DisVerTri   (MshSct *, double *, TriSct *);
+static double  DisVerTet   (MshSct *, double *, TetSct *);
+static double  GetTriSrf   (TriSct *);
+static double  GetVolTet   (TetSct *);
+static double  DisVerEdg   (double *, EdgSct *);
+static void    GetTriVec   (TriSct *, double *);
+static void    SetTriNrm   (TriSct *);
+static void    SetTmpHex   (HexSct *, double *, double *);
+static int     VerInsTet   (VerSct *, TetSct *, double);
+static int     VerInsHex   (VerSct *, HexSct *);
+static int     EdgIntHex   (EdgSct *, HexSct *, double);
+static int     TriIntHex   (TriSct *, HexSct *, double);
+static int     TetIntHex   (TetSct *, HexSct *, double);
+static int     EdgIntQad   (HexSct *, int, EdgSct *, VerSct *, double);
+static int     EdgIntTri   (TriSct *, EdgSct *, VerSct *, double);
+static int     VerInsTri   (TriSct *, VerSct *, double);
+static int     VerInsEdg   (EdgSct *, VerSct *, double);
+static void    SetEdgTng   (EdgSct *);
+static double  GetTriAni   (TriSct *);
 
 
 /*----------------------------------------------------------------------------*/
@@ -260,8 +260,8 @@ static double  GetNrmVec   (double *);
 /* Prototypes of memory handling procedures                                   */
 /*----------------------------------------------------------------------------*/
 
-static void *NewMem(OctMshSct *, size_t);
-static void FreAllMem(OctMshSct *);
+static void *NewMem        (OctMshSct *, size_t);
+static void FreAllMem      (OctMshSct *);
 
 
 /*----------------------------------------------------------------------------*/
