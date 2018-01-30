@@ -7,7 +7,7 @@ Subsequently, you can perform geometrical queries very quickly on this mesh:
 - retrieve the closest entity from a given set of coordinates
 - build the list of mesh entities than are include in a given bounding box
 
-# Build
+# Build for *Linux* or *macOS*
 Simply follow these steps:
 - unarchive the ZIP file
 - `cd libOL-master`
