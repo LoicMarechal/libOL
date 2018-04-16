@@ -67,7 +67,7 @@ int main()
    NmbEdg = GmfStatKwd(MshIdx, GmfEdges);
    NmbTri = GmfStatKwd(MshIdx, GmfTriangles);
    NmbTet = GmfStatKwd(MshIdx, GmfTetrahedra);
-   printf("vertices = %d, edges = %d, triangles = %d, tets = %d, dimension = %d, version = %d\n", \
+   printf("vertices = %d, edges = %d, triangles = %d, tets = %d, dimension = %d, version = %d\n",
             NmbVer, NmbEdg, NmbTri, NmbTet, dim, ver);
 
    if( !NmbVer || (dim != 3) )
@@ -77,39 +77,39 @@ int main()
    }
 
    VerTab = malloc((NmbVer+1) * 3 * sizeof(double));
-   GmfGetBlock(MshIdx, GmfVertices, 1, NmbVer, 0, NULL, NULL, \
-               GmfDouble, &VerTab[1][0], &VerTab[ NmbVer ][0], \
-               GmfDouble, &VerTab[1][1], &VerTab[ NmbVer ][1], \
-               GmfDouble, &VerTab[1][2], &VerTab[ NmbVer ][2], \
+   GmfGetBlock(MshIdx, GmfVertices, 1, NmbVer, 0, NULL, NULL,
+               GmfDouble, &VerTab[1][0], &VerTab[ NmbVer ][0],
+               GmfDouble, &VerTab[1][1], &VerTab[ NmbVer ][1],
+               GmfDouble, &VerTab[1][2], &VerTab[ NmbVer ][2],
                GmfInt, &ref, &ref );
 
    if(NmbEdg)
    {
       EdgTab = malloc((NmbEdg+1) * 2 * sizeof(int));
-      GmfGetBlock(MshIdx, GmfEdges, 1, NmbEdg, 0, NULL, NULL, \
-                  GmfInt, &EdgTab[1][0], &EdgTab[ NmbEdg ][0], \
-                  GmfInt, &EdgTab[1][1], &EdgTab[ NmbEdg ][1], \
+      GmfGetBlock(MshIdx, GmfEdges, 1, NmbEdg, 0, NULL, NULL,
+                  GmfInt, &EdgTab[1][0], &EdgTab[ NmbEdg ][0],
+                  GmfInt, &EdgTab[1][1], &EdgTab[ NmbEdg ][1],
                   GmfInt, &ref, &ref);
    }
 
    if(NmbTri)
    {
       TriTab = malloc((NmbTri+1) * 3 * sizeof(int));
-      GmfGetBlock(MshIdx, GmfTriangles, 1, NmbTri, 0, NULL, NULL, \
-                  GmfInt, &TriTab[1][0], &TriTab[ NmbTri ][0], \
-                  GmfInt, &TriTab[1][1], &TriTab[ NmbTri ][1], \
-                  GmfInt, &TriTab[1][2], &TriTab[ NmbTri ][2], \
+      GmfGetBlock(MshIdx, GmfTriangles, 1, NmbTri, 0, NULL, NULL,
+                  GmfInt, &TriTab[1][0], &TriTab[ NmbTri ][0],
+                  GmfInt, &TriTab[1][1], &TriTab[ NmbTri ][1],
+                  GmfInt, &TriTab[1][2], &TriTab[ NmbTri ][2],
                   GmfInt, &ref, &ref );
    }
 
    if(NmbTet)
    {
       TetTab = malloc((NmbTet+1) * 4 * sizeof(int));
-      GmfGetBlock(MshIdx, GmfTetrahedra, 1, NmbTet, 0, NULL, NULL, \
-                  GmfInt, &TetTab[1][0], &TetTab[ NmbTet ][0], \
-                  GmfInt, &TetTab[1][1], &TetTab[ NmbTet ][1], \
-                  GmfInt, &TetTab[1][2], &TetTab[ NmbTet ][2], \
-                  GmfInt, &TetTab[1][3], &TetTab[ NmbTet ][3], \
+      GmfGetBlock(MshIdx, GmfTetrahedra, 1, NmbTet, 0, NULL, NULL,
+                  GmfInt, &TetTab[1][0], &TetTab[ NmbTet ][0],
+                  GmfInt, &TetTab[1][1], &TetTab[ NmbTet ][1],
+                  GmfInt, &TetTab[1][2], &TetTab[ NmbTet ][2],
+                  GmfInt, &TetTab[1][3], &TetTab[ NmbTet ][3],
                   GmfInt, &ref, &ref );
    }
 
@@ -123,13 +123,13 @@ int main()
 
    puts("\nBuild the octree : ");
    t = clock();
-   OctIdx = LolNewOctree(  NmbVer, VerTab[1], VerTab[2], \
-                           NmbEdg, EdgTab[1], EdgTab[2], \
-                           NmbTri, TriTab[1], TriTab[2], \
-                           0, NULL, NULL, \
-                           NmbTet, TetTab[1], TetTab[2], \
-                           0, NULL, NULL, \
-                           0, NULL, NULL, \
+   OctIdx = LolNewOctree(  NmbVer, VerTab[1], VerTab[2],
+                           NmbEdg, EdgTab[1], EdgTab[2],
+                           NmbTri, TriTab[1], TriTab[2],
+                           0, NULL, NULL,
+                           NmbTet, TetTab[1], TetTab[2],
+                           0, NULL, NULL,
+                           0, NULL, NULL,
                            0, NULL, NULL );
 
    printf(" %g s\n", (double)(clock() - t) / CLOCKS_PER_SEC);
@@ -150,14 +150,14 @@ int main()
    {
       puts("\nSearch for the closest edge from a given point :");
       idx = LolGetNearest(OctIdx, LolTypEdg, crd1, &dis, 0., NULL, NULL);
-      printf(" closest edge = %d (%d - %d), distance = %g\n", \
+      printf(" closest edge = %d (%d - %d), distance = %g\n",
                idx, EdgTab[ idx ][0], EdgTab[ idx ][1], dis);
       LolProjectVertex(OctIdx, crd1, LolTypEdg, idx, MinCrd);
-      printf(" projection on the closest edge: %g %g %g\n", \
+      printf(" projection on the closest edge: %g %g %g\n",
                MinCrd[0], MinCrd[1], MinCrd[2] );
       printf(" distance from image = %g\n",\
-               sqrt(POW(MinCrd[0] - crd1[0]) \
-                  + POW(MinCrd[1] - crd1[1]) \
+               sqrt(POW(MinCrd[0] - crd1[0])
+                  + POW(MinCrd[1] - crd1[1])
                   + POW(MinCrd[2] - crd1[2]) ));
    }
 
@@ -174,11 +174,11 @@ int main()
       idx = LolGetNearest(OctIdx, LolTypTri, crd1, &dis, 0., NULL, NULL);
       printf(" closest triangle = %d, distance = %g\n", idx, dis);
       LolProjectVertex(OctIdx, crd1, LolTypTri, idx, MinCrd);
-      printf(" projection on the closest triangle: %g %g %g\n", \
+      printf(" projection on the closest triangle: %g %g %g\n",
                MinCrd[0], MinCrd[1], MinCrd[2] );
       printf(" distance from image = %g\n",\
-               sqrt(POW(MinCrd[0] - crd1[0]) \
-                  + POW(MinCrd[1] - crd1[1]) \
+               sqrt(POW(MinCrd[0] - crd1[0])
+                  + POW(MinCrd[1] - crd1[1])
                   + POW(MinCrd[2] - crd1[2]) ));
 
       for(i=1;i<=NmbVer;i++)
@@ -220,8 +220,8 @@ int main()
          crd1[0] += IncCrd[0];
       }
 
-      printf("nb samples = %d, mean dist = %g, total time = %g s, min time = %g s, max time = %g s\n", \
-            inc*inc*inc, AvgDis / (inc*inc*inc), (double)(clock() - t) / CLOCKS_PER_SEC, \
+      printf("nb samples = %d, mean dist = %g, total time = %g s, min time = %g s, max time = %g s\n",
+            inc*inc*inc, AvgDis / (inc*inc*inc), (double)(clock() - t) / CLOCKS_PER_SEC,
             (double)MinTim / CLOCKS_PER_SEC, (double)MaxTim / CLOCKS_PER_SEC);
    }
 
@@ -251,16 +251,16 @@ int main()
       }
 
       GmfSetKwd(MshIdx, GmfVertices, NmbVer);
-      GmfSetBlock(MshIdx, GmfVertices, 1, NmbVer, 0, NULL, NULL, \
-                  GmfDouble, &VerTab[1][0], &VerTab[ NmbVer ][0], \
-                  GmfDouble, &VerTab[1][1], &VerTab[ NmbVer ][1], \
-                  GmfDouble, &VerTab[1][2], &VerTab[ NmbVer ][2], \
+      GmfSetBlock(MshIdx, GmfVertices, 1, NmbVer, 0, NULL, NULL,
+                  GmfDouble, &VerTab[1][0], &VerTab[ NmbVer ][0],
+                  GmfDouble, &VerTab[1][1], &VerTab[ NmbVer ][1],
+                  GmfDouble, &VerTab[1][2], &VerTab[ NmbVer ][2],
                   GmfInt, &ref, &ref );
 
       GmfSetKwd(MshIdx, GmfTetrahedra, NmbItm);
       for(i=0;i<NmbItm;i++)
-         GmfSetLin(  MshIdx, GmfTetrahedra, \
-                     TetTab[ buf[i] ][0], TetTab[ buf[i] ][1], \
+         GmfSetLin(  MshIdx, GmfTetrahedra,
+                     TetTab[ buf[i] ][0], TetTab[ buf[i] ][1],
                      TetTab[ buf[i] ][2], TetTab[ buf[i] ][3], 2);
 
       GmfCloseMesh(MshIdx);
