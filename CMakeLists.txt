@@ -45,7 +45,7 @@ else()
    You can download it from GitHUB at https://github.com/LoicMarechal/libMeshb")
 endif()
 
-install (FILES LICENSE copyright.txt DESTINATION share/libOL)
+install (FILES LICENSE.txt copyright.txt DESTINATION share/libOL)
 install (DIRECTORY sample_meshes DESTINATION share/libOL)
 
 
