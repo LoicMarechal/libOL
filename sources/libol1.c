@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.53                         */
+/*                      LIB OCTREE LOCALISATION V1.54                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   aug 07 2017                                        */
+/*    Last modification:   sep 04 2018                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -139,7 +139,7 @@ typedef struct
    PriSct   pri, BakPri;
    HexSct   hex, BakHex;
    char    *FlgTab, *UsrPtr[ LolNmbTyp ];
-   int      UsrSiz[ LolNmbTyp ], NmbItm[ LolNmbTyp ];
+   size_t   UsrSiz[ LolNmbTyp ], NmbItm[ LolNmbTyp ];
    double   aniso, eps;
 }MshSct;
 
