@@ -771,6 +771,7 @@ int LolProjectVertex(int64_t OctIdx, double *VerCrd,
          if(VerInsEdg(&msh->tri.edg[i], &TmpVer, OctMsh->eps)
          && (dis(VerCrd, TmpVer.crd) < MinDis) )
          {
+            MinDis = dis(VerCrd, TmpVer.crd);
             CpyVec(TmpVer.crd, MinCrd);
             EdgFlg = 2;
          }
