@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.54                         */
+/*                      LIB OCTREE LOCALISATION V1.55                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   sep 04 2018                                        */
+/*    Last modification:   nov 29 2018                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -766,18 +766,15 @@ int LolProjectVertex(int64_t OctIdx, double *VerCrd,
       // Or fall inside one of its three edges
       for(i=0;i<3;i++)
       {
-         PrjVerLin(VerCrd, msh->tri.edg[i].ver[0]->crd, msh->tri.edg->tng, TmpVer.crd);
+         PrjVerLin(VerCrd, msh->tri.edg[i].ver[0]->crd, msh->tri.edg[i].tng, TmpVer.crd);
 
-         if(VerInsEdg(msh->tri.edg, &TmpVer, OctMsh->eps) \
+         if(VerInsEdg(&msh->tri.edg[i], &TmpVer, OctMsh->eps)
          && (dis(VerCrd, TmpVer.crd) < MinDis) )
          {
             CpyVec(TmpVer.crd, MinCrd);
             EdgFlg = 2;
          }
       }
-
-      if(EdgFlg)
-         return(2);
 
       // Or one of the three vertices
       for(i=0;i<3;i++)
@@ -788,10 +785,14 @@ int LolProjectVertex(int64_t OctIdx, double *VerCrd,
          {
             MinDis = CurDis;
             CpyVec(msh->tri.ver[i]->crd, MinCrd);
+            EdgFlg = 0; // la meilleure projection n'est plus sur un edge
          }
       }
 
-      return(1);
+      if(EdgFlg)
+         return(2);
+      else
+         return(1); // le meilleure proj est sur un vertex
    }
    else
       return(0);
