@@ -9,7 +9,7 @@
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   nov 29 2018                                        */
+/*    Last modification:   dec 14 2018                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -36,7 +36,7 @@
 
 #define MaxItmOct 20
 #define MaxOctLvl 10
-#define MinGrdLvl 3
+#define MinGrdLvl 5
 #define ItmPerBuc 100
 #define MemBlkSiz 100000
 #define MIN(a,b)  ((a) < (b) ? (a) : (b))
@@ -139,6 +139,7 @@ typedef struct
    PriSct   pri, BakPri;
    HexSct   hex, BakHex;
    char    *FlgTab, *UsrPtr[ LolNmbTyp ];
+   int     *TagTab, tag;
    size_t   UsrSiz[ LolNmbTyp ], NmbItm[ LolNmbTyp ];
    double   aniso, eps;
 }MshSct;
@@ -197,6 +198,9 @@ static void    SetSonCrd   (int, double *, double *, double *, double *);
 static void    GetOctLnk   (MshSct *, int, double *, int *, double *,
                            OctSct *, double *, double *,
                            int (void *, int),  void *);
+static void    IntRayOct   (OctMshSct *, MshSct *, double *, double *, int *, double *,
+                           OctSct *, double *, double *,
+                           int (void *, int),  void *);
 static void    GetBucBox   (OctMshSct *, BucSct *, double *, double *);
 static BucSct *GetBucNgb   (OctMshSct *, BucSct *, int);
 static double  DisVerOct   (double *, double *, double *);
@@ -242,6 +246,7 @@ static double  PrjVerPla   (double *, double *, double *, double *);
 static void    LinCmbVec3  (double, double *, double, double *, double *);
 static void    CpyVec      (double *, double *);
 static void    AddVec2     (double *, double *);
+static void    SubVec2     (double *, double *);
 static void    SubVec3     (double *, double *, double *);
 static void    AddScaVec1  (double, double *);
 static void    AddScaVec2  (double, double *, double *);
@@ -254,14 +259,17 @@ static double  dis         (double *, double *);
 static double  DisPow      (double *, double *);
 static double  DisVerPla   (double *, double *, double *);
 static double  GetNrmVec   (double *);
+static double  VerInsBox   (double *, double *, double *, double);
+static int     LinIntBox   (double *, double *, double *, double *, double);
+static void    LinIntPla   (double *, double *, double *, double *, double *);
 
 
 /*----------------------------------------------------------------------------*/
 /* Prototypes of memory handling procedures                                   */
 /*----------------------------------------------------------------------------*/
 
-static void *NewMem        (OctMshSct *, size_t);
-static void FreAllMem      (OctMshSct *);
+static void   *NewMem      (OctMshSct *, size_t);
+static void    FreAllMem   (OctMshSct *);
 
 
 /*----------------------------------------------------------------------------*/
@@ -322,6 +330,9 @@ int64_t LolNewOctree(int NmbVer, double *PtrCrd1, double *PtrCrd2,
 
    msh->FlgTab = NewMem(OctMsh, (MaxItmCnt + 1) * sizeof(char) );
    memset(msh->FlgTab, 0, (MaxItmCnt + 1) * sizeof(char));
+
+   msh->TagTab = NewMem(OctMsh, (MaxItmCnt + 1) * sizeof(int) );
+   memset(msh->TagTab, 0, (MaxItmCnt + 1) * sizeof(int));
 
    for(i=0;i<3;i++)
    {
@@ -548,8 +559,8 @@ static OctSct *GetCrd(  OctSct *oct, int MaxLvl, double VerCrd[3],
    {
       LinCmbVec3(.5, OctMin, .5, OctMax, MidCrd);
 
-      SonIdx =    ((VerCrd[0] < MidCrd[0]) ? 0 : 1) \
-               |  ((VerCrd[1] < MidCrd[1]) ? 0 : 2) \
+      SonIdx =    ((VerCrd[0] < MidCrd[0]) ? 0 : 1)
+               |  ((VerCrd[1] < MidCrd[1]) ? 0 : 2)
                |  ((VerCrd[2] < MidCrd[2]) ? 0 : 4);
 
       SetSonCrd(SonIdx, SonMin, SonMax, OctMin, OctMax);
@@ -576,7 +587,7 @@ static void GetBox(  OctMshSct *OctMsh, OctSct *oct, int typ, int *NmbItm,
    double xmid = (MinCrd[0] + MaxCrd[0])/2.;
    double ymid = (MinCrd[1] + MaxCrd[1])/2.;
    double zmid = (MinCrd[2] + MaxCrd[2])/2.;
-   double son[8][2][3] = { \
+   double son[8][2][3] = {
       { {MinCrd[0], MinCrd[1], MinCrd[2]}, {xmid, ymid, zmid} },
       { {xmid, MinCrd[1], MinCrd[2]}, {MaxCrd[0], ymid, zmid} },
       { {MinCrd[0], ymid, MinCrd[2]}, {xmid, MaxCrd[1], zmid} },
@@ -597,6 +608,7 @@ static void GetBox(  OctMshSct *OctMsh, OctSct *oct, int typ, int *NmbItm,
    else if((lnk = oct->lnk) && (*NmbItm < MaxItm) )
    {
       SetTmpHex(&OctMsh->hex, box[0], box[1]);
+
       // When a terminal octant is reached, add its linked entities
       // to the table and flag them to avoid duplicates
       do
@@ -647,17 +659,17 @@ static void GetBox(  OctMshSct *OctMsh, OctSct *oct, int typ, int *NmbItm,
 /* Search for the nearest item from a vertex in the octree                    */
 /*----------------------------------------------------------------------------*/
 
-int LolGetNearest(int64_t OctIdx, int typ, double VerCrd[3],
+int LolGetNearest(int64_t OctIdx, int typ, double *VerCrd,
                   double *MinDis, double MaxDis,
                   int (UsrPrc)(void *, int), void *UsrDat)
 {
    OctMshSct *OctMsh = (OctMshSct *)OctIdx;
    int i, ins=0, out=0, MinItm = 0, ini[3];
-   double MinCrd[3], MaxCrd[3];
-
+   double MinCrd[3], MaxCrd[3], vec[3];
    MshSct *msh = OctMsh->msh;
    BucSct *IniBuc, *buc, *ngb;
    OctMsh->tag++;
+   msh->tag = OctMsh->tag;
 
    if(MaxDis > 0.)
       *MinDis = MaxDis * MaxDis;
@@ -673,7 +685,7 @@ int LolGetNearest(int64_t OctIdx, int typ, double VerCrd[3],
       ini[i] = MIN(OctMsh->NmbBuc-1, ini[i]);
    }
 
-   IniBuc = &OctMsh->grd[ ini[0] * POW(OctMsh->NmbBuc) \
+   IniBuc = &OctMsh->grd[ ini[0] * POW(OctMsh->NmbBuc)
                         + ini[1] * OctMsh->NmbBuc + ini[2] ];
 
    // Push the octant containing the starting point on the lifo stack
@@ -695,7 +707,79 @@ int LolGetNearest(int64_t OctIdx, int typ, double VerCrd[3],
          if( !(ngb = GetBucNgb(OctMsh, buc, i)) || (ngb->tag == OctMsh->tag) )
             continue;
 
-         GetBucBox(OctMsh, buc, MinCrd, MaxCrd);
+         GetBucBox(OctMsh, ngb, MinCrd, MaxCrd);
+
+         if(DisVerOct(VerCrd, MinCrd, MaxCrd) < *MinDis)
+         {
+            OctMsh->stk[ ins++ ] = ngb;
+            ngb->tag = OctMsh->tag;
+         }
+      }
+   }
+
+   *MinDis = sqrt(*MinDis);
+
+   return(MinItm);
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* Find the closest intersected triangle along a line                         */
+/*----------------------------------------------------------------------------*/
+
+int LolIntersectSurface(int64_t OctIdx, double *VerCrd, double *VerTng,
+                        double *MinDis, double MaxDis,
+                        int (UsrPrc)(void *, int), void *UsrDat)
+{
+   OctMshSct *OctMsh = (OctMshSct *)OctIdx;
+   int i, ins=0, out=0, MinItm = 0, ini[3];
+   double MinCrd[3], MaxCrd[3], vec[3];
+   MshSct *msh = OctMsh->msh;
+   BucSct *IniBuc, *buc, *ngb;
+   OctMsh->tag++;
+   msh->tag = OctMsh->tag;
+
+   if(MaxDis > 0.)
+      *MinDis = MaxDis * MaxDis;
+   else
+      *MinDis = DBL_MAX;
+
+   // Get the vertex's integer coordinates in the grid
+   // and clip it if it stands outside the bounding box
+   for(i=0;i<3;i++)
+   {
+      ini[i] = (VerCrd[i] - OctMsh->bnd[0][i]) / OctMsh->BucSiz;
+      ini[i] = MAX(0, ini[i]);
+      ini[i] = MIN(OctMsh->NmbBuc-1, ini[i]);
+   }
+
+   IniBuc = &OctMsh->grd[ ini[0] * POW(OctMsh->NmbBuc)
+                        + ini[1] * OctMsh->NmbBuc + ini[2] ];
+
+   // Push the octant containing the starting point on the lifo stack
+   OctMsh->stk[ ins++ ] = IniBuc;
+   IniBuc->tag = OctMsh->tag;
+
+   // Flood fill processing of the grid : 
+   // check octant's contents distance against the closest item
+   while(ins > out)
+   {
+      buc = OctMsh->stk[ out++ ];
+      GetBucBox(  OctMsh, buc, MinCrd, MaxCrd);
+      IntRayOct(  OctMsh, msh, VerCrd, VerTng, &MinItm, MinDis, buc->oct,
+                  MinCrd, MaxCrd, UsrPrc, UsrDat );
+
+      // Push unprocessed neighbours intersected by the line
+      // on the stack as long as they are not too far
+      for(i=0;i<6;i++)
+      {
+         if( !(ngb = GetBucNgb(OctMsh, buc, i)) || (ngb->tag == OctMsh->tag) )
+            continue;
+
+         GetBucBox(OctMsh, ngb, MinCrd, MaxCrd);
+
+         if(!LinIntBox(VerCrd, VerTng, MinCrd, MaxCrd, OctMsh->eps))
+            continue;
 
          if(DisVerOct(VerCrd, MinCrd, MaxCrd) < *MinDis)
          {
@@ -825,27 +909,27 @@ static void GetBucBox(  OctMshSct *OctMsh, BucSct *buc,
 static BucSct *GetBucNgb(OctMshSct *OctMsh, BucSct *buc, int dir)
 {
    if( (dir == 0) && (buc->pos[0] > 0) )
-      return(&OctMsh->grd[ (buc->pos[0]-1) * POW(OctMsh->NmbBuc) \
+      return(&OctMsh->grd[ (buc->pos[0]-1) * POW(OctMsh->NmbBuc)
             + buc->pos[1] * OctMsh->NmbBuc + buc->pos[2] ]);
 
    if( (dir == 1) && (buc->pos[0] < OctMsh->NmbBuc-1) )
-      return(&OctMsh->grd[ (buc->pos[0]+1) * POW(OctMsh->NmbBuc) \
+      return(&OctMsh->grd[ (buc->pos[0]+1) * POW(OctMsh->NmbBuc)
             + buc->pos[1] * OctMsh->NmbBuc + buc->pos[2] ]);
 
    if( (dir == 2) && (buc->pos[1] > 0) )
-      return(&OctMsh->grd[ buc->pos[0] * POW(OctMsh->NmbBuc) \
+      return(&OctMsh->grd[ buc->pos[0] * POW(OctMsh->NmbBuc)
             + (buc->pos[1]-1) * OctMsh->NmbBuc + buc->pos[2] ]);
 
    if( (dir == 3) && (buc->pos[1] < OctMsh->NmbBuc-1) )
-      return(&OctMsh->grd[ buc->pos[0] * POW(OctMsh->NmbBuc) \
+      return(&OctMsh->grd[ buc->pos[0] * POW(OctMsh->NmbBuc)
             + (buc->pos[1]+1) * OctMsh->NmbBuc + buc->pos[2] ]);
 
    if( (dir == 4) && (buc->pos[2] > 0) )
-      return(&OctMsh->grd[ buc->pos[0] * POW(OctMsh->NmbBuc) \
+      return(&OctMsh->grd[ buc->pos[0] * POW(OctMsh->NmbBuc)
             + buc->pos[1] * OctMsh->NmbBuc + buc->pos[2]-1 ]);
 
    if( (dir == 5) && (buc->pos[2] < OctMsh->NmbBuc-1) )
-      return(&OctMsh->grd[ buc->pos[0] * POW(OctMsh->NmbBuc) \
+      return(&OctMsh->grd[ buc->pos[0] * POW(OctMsh->NmbBuc)
             + buc->pos[1] * OctMsh->NmbBuc + buc->pos[2]+1 ]);
 
    return(NULL);
@@ -919,10 +1003,15 @@ static void GetOctLnk(  MshSct *msh, int typ, double VerCrd[3],
          }
          else if(lnk->typ == LolTypTri)
          {
+            if(msh->TagTab[ lnk->idx ] == msh->tag)
+               continue;
+
+            msh->TagTab[ lnk->idx ] = msh->tag;
+            SetItm(msh, LolTypTri, lnk->idx, 0);
+
             if(UsrPrc && !UsrPrc(UsrDat, lnk->idx))
                continue;
 
-            SetItm(msh, LolTypTri, lnk->idx, 0);
             CurDis = DisVerTri(msh, VerCrd, &msh->tri);
          }
          else if(lnk->typ == LolTypTet)
@@ -935,6 +1024,74 @@ static void GetOctLnk(  MshSct *msh, int typ, double VerCrd[3],
          {
             *MinItm = lnk->idx;
             *MinDis = CurDis;
+         }
+      }while((lnk = lnk->nex));
+   }
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* Search for the nearest triangle instersected by a line                     */
+/*----------------------------------------------------------------------------*/
+
+static void IntRayOct(  OctMshSct *OctMsh, MshSct *msh, double *crd, double *tng,
+                        int *MinItm, double *MinDis,
+                        OctSct *oct, double MinCrd[3], double MaxCrd[3],
+                        int (UsrPrc)(void *, int), void *UsrDat )
+{
+   int i, *IdxTab;
+   double CurDis, SonMin[3], SonMax[3];
+   VerSct IntVer;
+   LnkSct *lnk;
+
+   if(oct->sub)
+   {
+      // Check each sons recursively as long as the minimum distance
+      // between the vertex and the octant is lower than
+      // the current distance from the closest entity
+      for(i=0;i<8;i++)
+      {
+         SetSonCrd(i, SonMin, SonMax, MinCrd, MaxCrd);
+
+         if(!LinIntBox(crd, tng, SonMin, SonMax, msh->eps))
+            continue;
+
+         IntRayOct(  OctMsh, msh, crd, tng, MinItm, MinDis, oct->son+i,
+                     SonMin, SonMax, UsrPrc, UsrDat );
+      }
+   }
+   else if((lnk = oct->lnk))
+   {
+      // When a leaf octant is reached, compute the intersection
+      // between its linked triangles and the line
+      do
+      {
+         if(lnk->typ != LolTypTri)
+            continue;
+
+         if(msh->TagTab[ lnk->idx ] == msh->tag)
+            continue;
+
+         msh->TagTab[ lnk->idx ] = msh->tag;
+         SetItm(msh, LolTypTri, lnk->idx, 0);
+
+         if(UsrPrc && !UsrPrc(UsrDat, lnk->idx))
+            continue;
+
+         if(DotPrd(tng, msh->tri.nrm) != 0.)
+         {
+            LinIntPla(crd, tng, msh->tri.ver[0]->crd, msh->tri.nrm, IntVer.crd);
+
+            if(VerInsTri(&msh->tri, &IntVer, msh->eps))
+            {
+               CurDis = DisPow(IntVer.crd, crd);
+
+               if(CurDis < *MinDis)
+               {
+                  *MinItm = lnk->idx;
+                  *MinDis = CurDis;
+               }
+            }
          }
       }while((lnk = lnk->nex));
    }
@@ -1108,7 +1265,7 @@ static void AddVer(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct,
    {
       LnkItm(OctMsh, oct, LolTypVer, msh->ver[0].idx, 0);
 
-      if((oct->lvl < OctMsh->GrdLvl) \
+      if((oct->lvl < OctMsh->GrdLvl)
       || ((oct->NmbVer >= oct->MaxItm) && (oct->lvl < MaxOctLvl)) )
       {
          SubOct(msh, OctMsh, oct, MinCrd, MaxCrd);
@@ -1142,7 +1299,7 @@ static void AddEdg(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct,
    {
       LnkItm(OctMsh, oct, LolTypEdg, msh->edg.idx, 0);
 
-      if( (oct->lvl < OctMsh->GrdLvl) \
+      if( (oct->lvl < OctMsh->GrdLvl)
       || ((oct->NmbEdg >= oct->MaxItm) && (oct->lvl < MaxOctLvl)) )
       {
          SubOct(msh, OctMsh, oct, MinCrd, MaxCrd);
@@ -1176,7 +1333,7 @@ static void AddTri(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct,
    {
       LnkItm(OctMsh, oct, LolTypTri, msh->tri.idx, msh->tri.ani);
 
-      if( (oct->lvl < OctMsh->GrdLvl) \
+      if( (oct->lvl < OctMsh->GrdLvl)
       || ((oct->NmbFac >= oct->MaxItm) && (oct->lvl < MaxOctLvl)) )
       {
          SubOct(msh, OctMsh, oct, MinCrd, MaxCrd);
@@ -1210,7 +1367,7 @@ static void AddTet(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct,
    {
       LnkItm(OctMsh, oct, LolTypTet, msh->tet.idx, msh->tet.ani);
 
-      if( (oct->lvl < OctMsh->GrdLvl) \
+      if( (oct->lvl < OctMsh->GrdLvl)
       || ((oct->NmbFac >= oct->MaxItm) && (oct->lvl < MaxOctLvl)) )
       {
          SubOct(msh, OctMsh, oct, MinCrd, MaxCrd);
@@ -1531,6 +1688,70 @@ static void SetTmpHex(HexSct *hex, double MinCrd[3], double MaxCrd[3])
 
 
 /*----------------------------------------------------------------------------*/
+/* Compute/test the intersection between a line and a cube                    */
+/*----------------------------------------------------------------------------*/
+
+static int LinIntBox(double *LinCrd, double *LinTng,
+                     double *BoxMin, double *BoxMax, double eps)
+{
+   int i;
+   double IntCrd[3], NrmTab[3][3] = { {1,0,0}, {0,1,0}, {0,0,1} };
+
+   // Compute the intersections between the edge and the cube's faces
+   for(i=0;i<3;i++)
+   {
+      if(LinTng[i] == 0.)
+         continue;
+
+      LinIntPla(LinCrd, LinTng, BoxMin, NrmTab[i], IntCrd);
+
+      if(VerInsBox(IntCrd, BoxMin, BoxMax, eps))
+         return(1);
+
+      LinIntPla(LinCrd, LinTng, BoxMax, NrmTab[i], IntCrd);
+
+      if(VerInsBox(IntCrd, BoxMin, BoxMax, eps))
+         return(1);
+   }
+
+   return(0);
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* Compute the intersection between a line and a plane                        */
+/*----------------------------------------------------------------------------*/
+
+static void LinIntPla(  double *LinCrd, double *LinTng,
+                        double *PlaCrd, double *PlaNrm, double *IntCrd)
+{
+   double u[3];
+
+   SubVec3(LinCrd, PlaCrd, u);
+   LinCmbVec3( 1., LinCrd, -DotPrd(PlaNrm, u) / DotPrd(PlaNrm, LinTng),
+               LinTng, IntCrd);
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* Test if a vertex stands inside a bounding box + epsilon                    */
+/*----------------------------------------------------------------------------*/
+
+static double VerInsBox(double *VerCrd, double *BoxMin, double *BoxMax,
+                        double eps)
+{
+   if((VerCrd[0] < BoxMin[0] - eps) || (VerCrd[1] < BoxMin[1] - eps)
+   || (VerCrd[2] < BoxMin[2] - eps) || (VerCrd[0] > BoxMax[0] + eps)
+   || (VerCrd[1] > BoxMax[1] + eps) || (VerCrd[2] > BoxMax[2] + eps) )
+   {
+      return(0);
+   }
+
+   return(1);
+}
+
+
+/*----------------------------------------------------------------------------*/
 /* Compute/test the intersection between an edge and a hex                    */
 /*----------------------------------------------------------------------------*/
 
@@ -1565,23 +1786,23 @@ static int TriIntHex(TriSct *tri, HexSct *hex, double eps)
    // If there is no intersection between the bounding box
    // of the triangle and the octant it is no use to test,
    // the triangle doesn't intersect the octant
-   if((  (tri->ver[0]->crd[0] < hex->ver[3]->crd[0]) \
-      && (tri->ver[1]->crd[0] < hex->ver[3]->crd[0]) \
-      && (tri->ver[2]->crd[0] < hex->ver[3]->crd[0]) ) \
-   || (  (tri->ver[0]->crd[0] > hex->ver[5]->crd[0]) \
-      && (tri->ver[1]->crd[0] > hex->ver[5]->crd[0]) \
-      && (tri->ver[2]->crd[0] > hex->ver[5]->crd[0]) ) \
-   || (  (tri->ver[0]->crd[1] < hex->ver[3]->crd[1]) \
-      && (tri->ver[1]->crd[1] < hex->ver[3]->crd[1]) \
-      && (tri->ver[2]->crd[1] < hex->ver[3]->crd[1]) ) \
-   || (  (tri->ver[0]->crd[1] > hex->ver[5]->crd[1]) \
-      && (tri->ver[1]->crd[1] > hex->ver[5]->crd[1]) \
-      && (tri->ver[2]->crd[1] > hex->ver[5]->crd[1]) ) \
-   || (  (tri->ver[0]->crd[2] < hex->ver[3]->crd[2]) \
-      && (tri->ver[1]->crd[2] < hex->ver[3]->crd[2]) \
-      && (tri->ver[2]->crd[2] < hex->ver[3]->crd[2]) ) \
-   || (  (tri->ver[0]->crd[2] > hex->ver[5]->crd[2]) \
-      && (tri->ver[1]->crd[2] > hex->ver[5]->crd[2]) \
+   if((  (tri->ver[0]->crd[0] < hex->ver[3]->crd[0])
+      && (tri->ver[1]->crd[0] < hex->ver[3]->crd[0])
+      && (tri->ver[2]->crd[0] < hex->ver[3]->crd[0]) )
+   || (  (tri->ver[0]->crd[0] > hex->ver[5]->crd[0])
+      && (tri->ver[1]->crd[0] > hex->ver[5]->crd[0])
+      && (tri->ver[2]->crd[0] > hex->ver[5]->crd[0]) )
+   || (  (tri->ver[0]->crd[1] < hex->ver[3]->crd[1])
+      && (tri->ver[1]->crd[1] < hex->ver[3]->crd[1])
+      && (tri->ver[2]->crd[1] < hex->ver[3]->crd[1]) )
+   || (  (tri->ver[0]->crd[1] > hex->ver[5]->crd[1])
+      && (tri->ver[1]->crd[1] > hex->ver[5]->crd[1])
+      && (tri->ver[2]->crd[1] > hex->ver[5]->crd[1]) )
+   || (  (tri->ver[0]->crd[2] < hex->ver[3]->crd[2])
+      && (tri->ver[1]->crd[2] < hex->ver[3]->crd[2])
+      && (tri->ver[2]->crd[2] < hex->ver[3]->crd[2]) )
+   || (  (tri->ver[0]->crd[2] > hex->ver[5]->crd[2])
+      && (tri->ver[1]->crd[2] > hex->ver[5]->crd[2])
       && (tri->ver[2]->crd[2] > hex->ver[5]->crd[2]) ) )
    {
       return(0);
@@ -1638,29 +1859,29 @@ static int TetIntHex(TetSct *tet, HexSct *hex, double eps)
    // If there is no intersection between the bounding box
    // of the tet and the octant it is no use to test,
    // the tet doesn't intersect the octant
-   if((  (tet->ver[0]->crd[0] < hex->ver[3]->crd[0]) \
-      && (tet->ver[1]->crd[0] < hex->ver[3]->crd[0]) \
-      && (tet->ver[2]->crd[0] < hex->ver[3]->crd[0]) \
-      && (tet->ver[3]->crd[0] < hex->ver[3]->crd[0]) ) \
-   || (  (tet->ver[0]->crd[0] > hex->ver[5]->crd[0]) \
-      && (tet->ver[1]->crd[0] > hex->ver[5]->crd[0]) \
-      && (tet->ver[2]->crd[0] > hex->ver[5]->crd[0]) \
-      && (tet->ver[3]->crd[0] > hex->ver[5]->crd[0]) ) \
-   || (  (tet->ver[0]->crd[1] < hex->ver[3]->crd[1]) \
-      && (tet->ver[1]->crd[1] < hex->ver[3]->crd[1]) \
-      && (tet->ver[2]->crd[1] < hex->ver[3]->crd[1]) \
-      && (tet->ver[3]->crd[1] < hex->ver[3]->crd[1]) ) \
-   || (  (tet->ver[0]->crd[1] > hex->ver[5]->crd[1]) \
-      && (tet->ver[1]->crd[1] > hex->ver[5]->crd[1]) \
-      && (tet->ver[2]->crd[1] > hex->ver[5]->crd[1]) \
-      && (tet->ver[3]->crd[1] > hex->ver[5]->crd[1]) ) \
-   || (  (tet->ver[0]->crd[2] < hex->ver[3]->crd[2]) \
-      && (tet->ver[1]->crd[2] < hex->ver[3]->crd[2]) \
-      && (tet->ver[2]->crd[2] < hex->ver[3]->crd[2]) \
-      && (tet->ver[3]->crd[2] < hex->ver[3]->crd[2]) ) \
-   || (  (tet->ver[0]->crd[2] > hex->ver[5]->crd[2]) \
-      && (tet->ver[1]->crd[2] > hex->ver[5]->crd[2]) \
-      && (tet->ver[2]->crd[2] > hex->ver[5]->crd[2]) \
+   if((  (tet->ver[0]->crd[0] < hex->ver[3]->crd[0])
+      && (tet->ver[1]->crd[0] < hex->ver[3]->crd[0])
+      && (tet->ver[2]->crd[0] < hex->ver[3]->crd[0])
+      && (tet->ver[3]->crd[0] < hex->ver[3]->crd[0]) )
+   || (  (tet->ver[0]->crd[0] > hex->ver[5]->crd[0])
+      && (tet->ver[1]->crd[0] > hex->ver[5]->crd[0])
+      && (tet->ver[2]->crd[0] > hex->ver[5]->crd[0])
+      && (tet->ver[3]->crd[0] > hex->ver[5]->crd[0]) )
+   || (  (tet->ver[0]->crd[1] < hex->ver[3]->crd[1])
+      && (tet->ver[1]->crd[1] < hex->ver[3]->crd[1])
+      && (tet->ver[2]->crd[1] < hex->ver[3]->crd[1])
+      && (tet->ver[3]->crd[1] < hex->ver[3]->crd[1]) )
+   || (  (tet->ver[0]->crd[1] > hex->ver[5]->crd[1])
+      && (tet->ver[1]->crd[1] > hex->ver[5]->crd[1])
+      && (tet->ver[2]->crd[1] > hex->ver[5]->crd[1])
+      && (tet->ver[3]->crd[1] > hex->ver[5]->crd[1]) )
+   || (  (tet->ver[0]->crd[2] < hex->ver[3]->crd[2])
+      && (tet->ver[1]->crd[2] < hex->ver[3]->crd[2])
+      && (tet->ver[2]->crd[2] < hex->ver[3]->crd[2])
+      && (tet->ver[3]->crd[2] < hex->ver[3]->crd[2]) )
+   || (  (tet->ver[0]->crd[2] > hex->ver[5]->crd[2])
+      && (tet->ver[1]->crd[2] > hex->ver[5]->crd[2])
+      && (tet->ver[2]->crd[2] > hex->ver[5]->crd[2])
       && (tet->ver[3]->crd[2] > hex->ver[5]->crd[2]) ) )
    {
       return(0);
@@ -1741,7 +1962,7 @@ static int VerInsHex(VerSct *ver, HexSct *hex)
    int i;
 
    for(i=0;i<3;i++)
-      if( (ver->crd[i] > hex->ver[5]->crd[i]) \
+      if( (ver->crd[i] > hex->ver[5]->crd[i])
       ||  (ver->crd[i] < hex->ver[3]->crd[i]) )
       {
          return(0);
@@ -1788,9 +2009,9 @@ static int EdgIntQad(HexSct *hex, int FacIdx, EdgSct *edg,
          // Test if both vertices stand on opposite sides of the plane
          if(sgn[0] * sgn[1] < 0)
          {
-            LinCmbVec3( fabs(sgn[0]) / (fabs(sgn[0]) \
+            LinCmbVec3( fabs(sgn[0]) / (fabs(sgn[0])
                      +  fabs(sgn[1])), edg->ver[1]->crd,
-                        fabs(sgn[1]) / (fabs(sgn[0]) \
+                        fabs(sgn[1]) / (fabs(sgn[0])
                      +  fabs(sgn[1])), edg->ver[0]->crd, IntVer->crd);
 
             return(VerInsHex(IntVer, hex));
@@ -1859,9 +2080,9 @@ static int EdgIntTri(TriSct *tri, EdgSct *edg, VerSct *IntVer, double eps)
          // Test if both vertices stand on opposite sides of the plane
          if(sgn[0] * sgn[1] < 0)
          {
-            LinCmbVec3( fabs(sgn[0]) / (fabs(sgn[0]) \
+            LinCmbVec3( fabs(sgn[0]) / (fabs(sgn[0])
                      +  fabs(sgn[1])), edg->ver[1]->crd,
-                        fabs(sgn[1]) / (fabs(sgn[0]) \
+                        fabs(sgn[1]) / (fabs(sgn[0])
                      +  fabs(sgn[1])), edg->ver[0]->crd, IntVer->crd);
 
             return(VerInsTri(tri, IntVer, eps));
@@ -2181,8 +2402,8 @@ static double GetVolTet(TetSct *tet)
    c[8] = tet->ver[3]->crd[2] - tet->ver[0]->crd[2];
 
    // Return the "determinant" of the matrix
-   return(  c[0] * (c[4]*c[8] - c[5]*c[7]) \
-         +  c[1] * (c[5]*c[6] - c[3]*c[8]) \
+   return(  c[0] * (c[4]*c[8] - c[5]*c[7])
+         +  c[1] * (c[5]*c[6] - c[3]*c[8])
          +  c[2] * (c[3]*c[7] - c[4]*c[6]) );
 }
 
@@ -2306,15 +2527,15 @@ static double DisVerPla(double VerCrd[3], double PlaCrd[3], double PlaNrm[3])
 
 static int BoxIntBox(double box1[2][3], double box2[2][3], double eps)
 {
-   if((  ((box1[0][0] > box2[0][0] - eps) && (box1[0][0] < box2[1][0] + eps)) \
-      || ((box1[1][0] > box2[0][0] - eps) && (box1[1][0] < box2[1][0] + eps)) \
-      || ((box1[0][0] < box2[0][0]      ) && (box1[1][0] > box2[1][0]      ))) \
-   && (  ((box1[0][1] > box2[0][1] - eps) && (box1[0][1] < box2[1][1] + eps)) \
-      || ((box1[1][1] > box2[0][1] - eps) && (box1[1][1] < box2[1][1] + eps)) \
-      || ((box1[0][1] < box2[0][1]      ) && (box1[1][1] > box2[1][1]      ))) \
-   && (  ((box1[0][2] > box2[0][2] - eps) && (box1[0][2] < box2[1][2] + eps)) \
-      || ((box1[1][2] > box2[0][2] - eps) && (box1[1][2] < box2[1][2] + eps)) \
-      || ((box1[0][2] < box2[0][2]      ) && (box1[1][2] > box2[1][2]      ))) ) \
+   if((  ((box1[0][0] > box2[0][0] - eps) && (box1[0][0] < box2[1][0] + eps))
+      || ((box1[1][0] > box2[0][0] - eps) && (box1[1][0] < box2[1][0] + eps))
+      || ((box1[0][0] < box2[0][0]      ) && (box1[1][0] > box2[1][0]      )))
+   && (  ((box1[0][1] > box2[0][1] - eps) && (box1[0][1] < box2[1][1] + eps))
+      || ((box1[1][1] > box2[0][1] - eps) && (box1[1][1] < box2[1][1] + eps))
+      || ((box1[0][1] < box2[0][1]      ) && (box1[1][1] > box2[1][1]      )))
+   && (  ((box1[0][2] > box2[0][2] - eps) && (box1[0][2] < box2[1][2] + eps))
+      || ((box1[1][2] > box2[0][2] - eps) && (box1[1][2] < box2[1][2] + eps))
+      || ((box1[0][2] < box2[0][2]      ) && (box1[1][2] > box2[1][2]      ))) )
    {
       return(1);
    }
@@ -2368,6 +2589,15 @@ static double DisPow(double a[3], double b[3])
       siz += POW(b[i] - a[i]);
 
    return(siz);
+}
+
+// V = V - U
+static void SubVec2(double u[3], double v[3])
+{
+   int i;
+
+   for(i=0;i<3;i++)
+      v[i] -= u[i];
 }
 
 // W = U - V
@@ -2557,7 +2787,7 @@ int call(lolgetboundingbox)(int64_t *OctIdx, int *typ,
 }
 
 int call(lolgetnearest)(int64_t *OctIdx, int *typ, double *MinCrd,
-            double *MinDis, double *MaxDis, void *UsrPrc, void *UsrDat)
+                        double *MinDis, double *MaxDis, void *UsrPrc, void *UsrDat)
 {
    return(LolGetNearest(*OctIdx, *typ, MinCrd, MinDis, *MaxDis, UsrPrc, UsrDat));
 }

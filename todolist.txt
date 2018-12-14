@@ -8,10 +8,10 @@ PRIORITÉ NORMALE :
 
 PRIORITÉ FAIBLE :
 
--ajout des types volumiques
-
 
 RÉALISÉ :
 
 -calcul des diamètres géométriques locaux :
  génération d'une carte de taille des diamètres
+
+-ajout des types volumiques
