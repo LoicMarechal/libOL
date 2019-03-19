@@ -1003,6 +1003,7 @@ static void GetOctLnk(  MshSct *msh, int typ, double VerCrd[3],
          }
          else if(lnk->typ == LolTypTri)
          {
+
             if(msh->TagTab[ lnk->idx ] == msh->tag)
                continue;
 
