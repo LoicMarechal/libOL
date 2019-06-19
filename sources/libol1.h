@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.55                         */
+/*                      LIB OCTREE LOCALISATION V1.60                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   dec 13 2018                                        */
+/*    Last modification:   jun 19 2019                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -23,20 +23,33 @@ enum TypTag {  LolTypVer, LolTypEdg, LolTypTri, LolTypQad,
 
 
 /*----------------------------------------------------------------------------*/
+/* Global defines                                                             */
+/*----------------------------------------------------------------------------*/
+
+#ifdef INT64
+#define itg int64_t
+#define utg uint64_t
+#else
+#define itg int32_t
+#define utg uint32_t
+#endif
+
+
+/*----------------------------------------------------------------------------*/
 /* Public procedures                                                          */
 /*----------------------------------------------------------------------------*/
 
-int64_t LolNewOctree       (int, double *, double *, int, int *, int *,
-                            int, int *, int *, int, int *, int *,
-                            int, int *, int *, int, int *, int *,
-                            int, int *, int *, int, int *, int *);
+int64_t LolNewOctree       (itg, double *, double *, itg, itg *, itg *,
+                            itg, itg *, itg *, itg, itg *, itg *,
+                            itg, itg *, itg *, itg, itg *, itg *,
+                            itg, itg *, itg *, itg, itg *, itg *);
 size_t  LolFreeOctree      (int64_t);
-int     LolGetBoundingBox  (int64_t , int , int, int *, double [3], double [3]);
-int     LolGetNearest      (int64_t, int, double *, double *,
-                            double, int (void *, int), void * );
-int     LolIntersectSurface(int64_t, double *, double *, double *,
-                            double, int (void *, int), void * );
-int     LolProjectVertex   (int64_t, double *, int, int, double *);
+itg     LolGetBoundingBox  (int64_t , itg , itg, itg *, double [3], double [3]);
+itg     LolGetNearest      (int64_t, itg, double *, double *,
+                            double, itg (void *, itg), void * );
+itg     LolIntersectSurface(int64_t, double *, double *, double *,
+                            double, itg (void *, itg), void * );
+itg     LolProjectVertex   (int64_t, double *, itg, itg, double *);
 
 
 /*----------------------------------------------------------------------------*/

@@ -15,3 +15,5 @@ RÉALISÉ :
  génération d'une carte de taille des diamètres
 
 -ajout des types volumiques
+
+-passer les entiers en 64 bits
