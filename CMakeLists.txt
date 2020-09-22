@@ -7,24 +7,29 @@ cmake_minimum_required (VERSION 3.0.1)
 set (libOL_VERSION_MAJOR 1)
 set (libOL_VERSION_MINOR 40)
 
-if (WIN32)
-   set (CMAKE_C_FLAGS -DWIN32)
-   if (NOT DEFINED CMAKE_CONFIGURATION_TYPES)
-      set (CMAKE_CONFIGURATION_TYPES Release)
-   endif()
-else ()
-   set (CMAKE_C_FLAGS -O3)
-   set (CMAKE_Fortran_FLAGS -O3)
-   set (LINK_LIBRARIES m)
-endif()
-
-project (libOL VERSION ${libOL_VERSION_MAJOR}.${libOL_VERSION_MINOR} LANGUAGES C)
-
 include (CheckLanguage)
 check_language (Fortran)
 if(CMAKE_Fortran_COMPILER)
   enable_language(Fortran)
 endif()
+
+if (WIN32)
+   set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWIN32")
+   set (CMAKE_BUILD_TYPE Release)
+else ()
+   set (CMAKE_C_FLAGS             "${CMAKE_C_FLAGS} -O3")
+   set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O3")
+
+   if (CMAKE_Fortran_COMPILER_ID STREQUAL GNU)
+      set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=legacy")
+   endif ()
+
+   if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+     set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/local" CACHE PATH "..." FORCE)
+   endif()
+endif ()
+
+project (libOL VERSION ${libOL_VERSION_MAJOR}.${libOL_VERSION_MINOR} LANGUAGES C)
 
 
 #######################################
