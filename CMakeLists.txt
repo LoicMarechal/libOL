@@ -20,11 +20,11 @@ if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif ()
 
-if (WIN32)
-   set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWIN32")
-else ()
-   if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-     set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/local" CACHE PATH "..." FORCE)
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+   if (WIN32)
+      set(CMAKE_INSTALL_PREFIX "$ENV{HOMEPATH}/local" CACHE PATH "..." FORCE)
+   else ()
+      set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/local" CACHE PATH "..." FORCE)
    endif()
 endif ()
 
@@ -59,13 +59,15 @@ install (DIRECTORY sample_meshes DESTINATION share/libOL)
 # SET PACKAGE AND DEPLOYMENT VARIABLES
 ######################################
 
-include (InstallRequiredSystemLibraries)
-set (CPACK_GENERATOR TXZ)
-set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/copyright.txt)
-set (CPACK_PACKAGE_VERSION_MAJOR ${libOL_VERSION_MAJOR})
-set (CPACK_PACKAGE_VERSION_MINOR ${libOL_VERSION_MINOR})
-set(CPACK_COMPONENTS_ALL applications examples libraries headers)
-include (CPack)
+if (CPACK)
+   include (InstallRequiredSystemLibraries)
+   set (CPACK_GENERATOR TXZ)
+   set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/copyright.txt)
+   set (CPACK_PACKAGE_VERSION_MAJOR ${libOL_VERSION_MAJOR})
+   set (CPACK_PACKAGE_VERSION_MINOR ${libOL_VERSION_MINOR})
+   set(CPACK_COMPONENTS_ALL applications examples libraries headers)
+   include (CPack)
+endif ()
 
 
 ######################################
