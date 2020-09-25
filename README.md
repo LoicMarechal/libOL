@@ -25,7 +25,7 @@ Subsequently, you can perform geometrical queries very quickly on this mesh:
 - `mkdir build`
 - `cd build`
 - `cmake ..`
-- `cmake --build . --target INSTALL`
+- `cmake --build . --target install`
 
 ### Optional steps
 Optionally, you may download some sample meshes to run the examples:
