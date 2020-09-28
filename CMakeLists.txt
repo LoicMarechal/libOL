@@ -5,7 +5,8 @@
 
 cmake_minimum_required (VERSION 3.7.2)
 set (libOL_VERSION_MAJOR 1)
-set (libOL_VERSION_MINOR 40)
+set (libOL_VERSION_MINOR 60)
+project (libOL VERSION ${libOL_VERSION_MAJOR}.${libOL_VERSION_MINOR} LANGUAGES C)
 
 include (CheckLanguage)
 check_language (Fortran)
@@ -27,8 +28,6 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
       set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/local" CACHE PATH "..." FORCE)
    endif()
 endif ()
-
-project (libOL VERSION ${libOL_VERSION_MAJOR}.${libOL_VERSION_MINOR} LANGUAGES C)
 
 
 #######################################
