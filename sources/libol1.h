@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.60                         */
+/*                      LIB OCTREE LOCALISATION V1.61                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   jun 19 2019                                        */
+/*    Last modification:   oct 01 2020                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -42,7 +42,7 @@ enum TypTag {  LolTypVer, LolTypEdg, LolTypTri, LolTypQad,
 int64_t LolNewOctree       (itg, double *, double *, itg, itg *, itg *,
                             itg, itg *, itg *, itg, itg *, itg *,
                             itg, itg *, itg *, itg, itg *, itg *,
-                            itg, itg *, itg *, itg, itg *, itg *);
+                            itg, itg *, itg *, itg, itg *, itg *, itg);
 size_t  LolFreeOctree      (int64_t);
 itg     LolGetBoundingBox  (int64_t , itg , itg, itg *, double [3], double [3]);
 itg     LolGetNearest      (int64_t, itg, double *, double *,

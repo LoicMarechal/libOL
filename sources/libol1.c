@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.60                         */
+/*                      LIB OCTREE LOCALISATION V1.61                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   jun 19 2019                                        */
+/*    Last modification:   oct 02 2020                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -139,7 +139,7 @@ typedef struct
    PriSct   pri, BakPri;
    HexSct   hex, BakHex;
    char    *FlgTab, *UsrPtr[ LolNmbTyp ];
-   itg     *TagTab, tag;
+   itg     *TagTab, tag, BasIdx;
    size_t   UsrSiz[ LolNmbTyp ], NmbItm[ LolNmbTyp ];
    double   aniso, eps;
 }MshSct;
@@ -195,17 +195,15 @@ static itg     BoxIntBox   (double [2][3], double [2][3], double);
 static void    SetItm      (MshSct *, itg, itg, itg);
 static void    AniTri      (MshSct *, itg);
 static void    SetSonCrd   (itg, double *, double *, double *, double *);
-static void    GetOctLnk   (MshSct *, itg, double *, itg *, double *,
-                           OctSct *, double *, double *,
-                           itg (void *, itg),  void *);
-static void    IntRayOct   (OctMshSct *, MshSct *, double *, double *, itg *, double *,
-                           OctSct *, double *, double *,
+static void    GetOctLnk   (MshSct *, itg, double *, itg *, double *, OctSct *,
+                           double *, double *, itg (void *, itg),  void *);
+static void    IntRayOct   (OctMshSct *, MshSct *, double *, double *, itg *,
+                           double *, OctSct *, double *, double *,
                            itg (void *, itg),  void *);
 static void    GetBucBox   (OctMshSct *, BucSct *, double *, double *);
 static BucSct *GetBucNgb   (OctMshSct *, BucSct *, itg);
 static double  DisVerOct   (double *, double *, double *);
 static itg     VerInsOct   (double *, double *, double *);
-static double *GetPtrCrd   (MshSct *, itg);
 static char   *GetPtrItm   (MshSct *, itg, itg);
 static void    BakMshItm   (MshSct *);
 static void    RstMshItm   (MshSct *);
@@ -243,15 +241,15 @@ static double  GetTriAni   (TriSct *);
 
 static void    PrjVerLin   (double *, double *, double *, double *);
 static double  PrjVerPla   (double *, double *, double *, double *);
-static void    LinCmbVec3  (double, double *, double, double *, double *);
+static void    LinCmbVec3  (double,   double *, double,   double *, double *);
 static void    CpyVec      (double *, double *);
 static void    AddVec2     (double *, double *);
 static void    SubVec2     (double *, double *);
 static void    SubVec3     (double *, double *, double *);
-static void    AddScaVec1  (double, double *);
-static void    AddScaVec2  (double, double *, double *);
-static void    MulVec1     (double, double *);
-static void    MulVec2     (double, double *, double *);
+static void    AddScaVec1  (double,   double *);
+static void    AddScaVec2  (double,   double *, double *);
+static void    MulVec1     (double,   double *);
+static void    MulVec2     (double,   double *, double *);
 static void    NrmVec      (double *);
 static void    CrsPrd      (double *, double *, double *);
 static double  DotPrd      (double *, double *);
@@ -283,7 +281,8 @@ int64_t LolNewOctree(itg NmbVer, double *PtrCrd1, double *PtrCrd2,
                      itg NmbTet, itg *PtrTet1, itg *PtrTet2,
                      itg NmbPyr, itg *PtrPyr1, itg *PtrPyr2,
                      itg NmbPri, itg *PtrPri1, itg *PtrPri2,
-                     itg NmbHex, itg *PtrHex1, itg *PtrHex2 )
+                     itg NmbHex, itg *PtrHex1, itg *PtrHex2,
+                     itg BasIdx)
 {
    itg i, j, k, EdgIdx, TotItmCnt = 0, MaxItmCnt = NmbVer;
    const itg TetEdg[6][2] = { {0,1}, {0,2}, {0,3}, {1,2}, {1,3}, {2,3} };
@@ -298,12 +297,17 @@ int64_t LolNewOctree(itg NmbVer, double *PtrCrd1, double *PtrCrd2,
    OctMshSct *OctMsh = NULL;
    MshSct *msh;
 
+   // Make sure we have a vertex table and a valide base index (0 ou 1)
+   if(!NmbVer || !PtrCrd1 || !PtrCrd2 || (BasIdx < 0) || (BasIdx > 1) )
+      return(0);
+
    // Setup a single octant octree
    OctMsh = calloc(1, sizeof(OctMshSct));
    assert(OctMsh);
 
    // Setup the mesh structure
    msh = NewMem(OctMsh, sizeof(MshSct));
+   msh->BasIdx = BasIdx;
 
    msh->NmbItm[ LolTypVer ] = NmbVer;
    TotItmCnt               += NmbVer;
@@ -439,30 +443,30 @@ int64_t LolNewOctree(itg NmbVer, double *PtrCrd1, double *PtrCrd2,
    OctMsh->hex.qad[5].nrm[2] = -1;
 
    // Insert each vertices in the octree
-   for(i=1;i<=msh->NmbItm[ LolTypVer ];i++)
+   for(i=0;i<msh->NmbItm[ LolTypVer ];i++)
    {
-      SetItm(msh, LolTypVer, i, 0);
+      SetItm(msh, LolTypVer, i + BasIdx, 0);
       AddVer(msh, OctMsh, &OctMsh->oct, OctMsh->bnd[0], OctMsh->bnd[1]);
    }
 
    // Insert each edges in the octree
-   for(i=1;i<=msh->NmbItm[ LolTypEdg ];i++)
+   for(i=0;i<msh->NmbItm[ LolTypEdg ];i++)
    {
-      SetItm(msh, LolTypEdg, i, 0);
+      SetItm(msh, LolTypEdg, i + BasIdx, 0);
       AddEdg(msh, OctMsh, &OctMsh->oct, OctMsh->bnd[0], OctMsh->bnd[1]);
    }
 
    // Insert each triangles in the octree
-   for(i=1;i<=msh->NmbItm[ LolTypTri ];i++)
+   for(i=0;i<msh->NmbItm[ LolTypTri ];i++)
    {
-      SetItm(msh, LolTypTri, i, TngFlg | AniFlg);
+      SetItm(msh, LolTypTri, i + BasIdx, TngFlg | AniFlg);
       AddTri(msh, OctMsh, &OctMsh->oct, OctMsh->bnd[0], OctMsh->bnd[1]);
    }
 
    // Insert each tetrahedra in the octree
-   for(i=1;i<=msh->NmbItm[ LolTypTet ];i++)
+   for(i=0;i<msh->NmbItm[ LolTypTet ];i++)
    {
-      SetItm(msh, LolTypTet, i, TngFlg);
+      SetItm(msh, LolTypTet, i + BasIdx, TngFlg);
       AddTet(msh, OctMsh, &OctMsh->oct, OctMsh->bnd[0], OctMsh->bnd[1]);
    }
 
@@ -1200,7 +1204,7 @@ static void RstMshItm(MshSct *msh)
 
 static char *GetPtrItm(MshSct *msh, itg typ, itg idx)
 {
-   return(msh->UsrPtr[ typ ] + (idx-1) * msh->UsrSiz[ typ ]);
+   return(msh->UsrPtr[ typ ] + (idx - msh->BasIdx) * msh->UsrSiz[ typ ]);
 }
 
 
@@ -1214,12 +1218,12 @@ static void SetMshBox(OctMshSct *box, MshSct *msh)
    double MinCrd[3], MaxCrd[3], MidCrd[3], *CrdTab, siz;
 
    // Compute the bounding box (rectangular)
-   CpyVec((double *)GetPtrItm(msh, LolTypVer, 1), MinCrd);
-   CpyVec((double *)GetPtrItm(msh, LolTypVer, 1), MaxCrd);
+   CpyVec((double *)GetPtrItm(msh, LolTypVer, msh->BasIdx), MinCrd);
+   CpyVec((double *)GetPtrItm(msh, LolTypVer, msh->BasIdx), MaxCrd);
 
-   for(i=2;i<=msh->NmbItm[ LolTypVer ];i++)
+   for(i=1;i<msh->NmbItm[ LolTypVer ];i++)
    {
-      CrdTab = (double *)GetPtrItm(msh, LolTypVer, i);
+      CrdTab = (double *)GetPtrItm(msh, LolTypVer, i + msh->BasIdx);
 
       for(j=0;j<3;j++)
       {
@@ -2768,12 +2772,14 @@ int64_t call(lolnewoctree)(itg *NmbVer, double *VerTab1, double *VerTab2,
                            itg *NmbTet, itg *TetTab1, itg *TetTab2,
                            itg *NmbPyr, itg *PyrTab1, itg *PyrTab2,
                            itg *NmbPri, itg *PriTab1, itg *PriTab2,
-                           itg *NmbHex, itg *HexTab1, itg *HexTab2 )
+                           itg *NmbHex, itg *HexTab1, itg *HexTab2,
+                           itg BasIdx)
 {
    return(LolNewOctree( *NmbVer, VerTab1, VerTab2, *NmbEdg, EdgTab1, EdgTab2,
                         *NmbTri, TriTab1, TriTab2, *NmbQad, QadTab1, QadTab2,
                         *NmbTet, TetTab1, TetTab2, *NmbPyr, PyrTab1, PyrTab2,
-                        *NmbPri, PriTab1, PriTab2, *NmbHex, HexTab1, HexTab2 ));
+                        *NmbPri, PriTab1, PriTab2, *NmbHex, HexTab1, HexTab2,
+                        BasIdx ));
 }
 
 int64_t call(lolfreeoctree)(int64_t *OctIdx)

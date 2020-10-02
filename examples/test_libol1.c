@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                         LIB OCTREE LOCALISATION V1.1                       */
+/*                      LIB OCTREE LOCALISATION V1.61                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/* Description:         Octree for mesh localization                          */
+/* Description:         Basic localization test on a surface mesh             */
 /* Author:              Loic MARECHAL                                         */
 /* Creation date:       mar 16 2012                                           */
-/* Last modification:   jan 30 2017                                           */
+/* Last modification:   oct 01 2020                                           */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -26,6 +26,11 @@
 #include <limits.h>
 #include <libmeshb7.h>
 #include <libol1.h>
+
+
+/*----------------------------------------------------------------------------*/
+/* Local defines                                                              */
+/*----------------------------------------------------------------------------*/
 
 #define BufSiz 1000000
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
@@ -78,17 +83,14 @@ int main()
 
    VerTab = malloc((NmbVer+1) * 3 * sizeof(double));
    GmfGetBlock(MshIdx, GmfVertices, 1, NmbVer, 0, NULL, NULL,
-               GmfDouble, &VerTab[1][0], &VerTab[ NmbVer ][0],
-               GmfDouble, &VerTab[1][1], &VerTab[ NmbVer ][1],
-               GmfDouble, &VerTab[1][2], &VerTab[ NmbVer ][2],
+               GmfDoubleVec, 3, VerTab[1], VerTab[ NmbVer ],
                GmfInt, &ref, &ref );
 
    if(NmbEdg)
    {
       EdgTab = malloc((NmbEdg+1) * 2 * sizeof(int));
       GmfGetBlock(MshIdx, GmfEdges, 1, NmbEdg, 0, NULL, NULL,
-                  GmfInt, &EdgTab[1][0], &EdgTab[ NmbEdg ][0],
-                  GmfInt, &EdgTab[1][1], &EdgTab[ NmbEdg ][1],
+                  GmfIntVec, 2, EdgTab[1], &EdgTab[ NmbEdg ],
                   GmfInt, &ref, &ref);
    }
 
@@ -96,9 +98,7 @@ int main()
    {
       TriTab = malloc((NmbTri+1) * 3 * sizeof(int));
       GmfGetBlock(MshIdx, GmfTriangles, 1, NmbTri, 0, NULL, NULL,
-                  GmfInt, &TriTab[1][0], &TriTab[ NmbTri ][0],
-                  GmfInt, &TriTab[1][1], &TriTab[ NmbTri ][1],
-                  GmfInt, &TriTab[1][2], &TriTab[ NmbTri ][2],
+                  GmfIntVec, 3, TriTab[1], TriTab[ NmbTri ],
                   GmfInt, &ref, &ref );
    }
 
@@ -106,10 +106,7 @@ int main()
    {
       TetTab = malloc((NmbTet+1) * 4 * sizeof(int));
       GmfGetBlock(MshIdx, GmfTetrahedra, 1, NmbTet, 0, NULL, NULL,
-                  GmfInt, &TetTab[1][0], &TetTab[ NmbTet ][0],
-                  GmfInt, &TetTab[1][1], &TetTab[ NmbTet ][1],
-                  GmfInt, &TetTab[1][2], &TetTab[ NmbTet ][2],
-                  GmfInt, &TetTab[1][3], &TetTab[ NmbTet ][3],
+                  GmfIntVec, 4, TetTab[1], TetTab[ NmbTet ],
                   GmfInt, &ref, &ref );
    }
 
@@ -130,7 +127,7 @@ int main()
                            NmbTet, TetTab[1], TetTab[2],
                            0, NULL, NULL,
                            0, NULL, NULL,
-                           0, NULL, NULL );
+                           0, NULL, NULL , 1);
 
    printf(" %g s\n", (double)(clock() - t) / CLOCKS_PER_SEC);
 
@@ -252,9 +249,7 @@ int main()
 
       GmfSetKwd(MshIdx, GmfVertices, NmbVer);
       GmfSetBlock(MshIdx, GmfVertices, 1, NmbVer, 0, NULL, NULL,
-                  GmfDouble, &VerTab[1][0], &VerTab[ NmbVer ][0],
-                  GmfDouble, &VerTab[1][1], &VerTab[ NmbVer ][1],
-                  GmfDouble, &VerTab[1][2], &VerTab[ NmbVer ][2],
+                  GmfDoubleVec, 3, VerTab[1], VerTab[ NmbVer ],
                   GmfInt, &ref, &ref );
 
       GmfSetKwd(MshIdx, GmfTetrahedra, NmbItm);
