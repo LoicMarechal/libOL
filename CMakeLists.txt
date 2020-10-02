@@ -37,6 +37,7 @@ endif ()
 include_directories (${PROJECT_SOURCE_DIR}/sources)
 add_subdirectory (sources)
 
+find_package(LPlib 3)
 find_package(libMeshb 7)
 
 if(libMeshb_FOUND)

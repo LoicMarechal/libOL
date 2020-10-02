@@ -2,20 +2,20 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.61                         */
+/*                      LIB OCTREE LOCALISATION V1.63                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   oct 01 2020                                        */
+/*    Last modification:   oct 02 2020                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
 
 /*----------------------------------------------------------------------------*/
-/* Public defines : type of elements and 32/64 bits int                       */
+/* Public defines : type of elements and 32/64 bits int and floating points   */
 /*----------------------------------------------------------------------------*/
 
 enum TypTag {  LolTypVer, LolTypEdg, LolTypTri, LolTypQad,
@@ -23,7 +23,9 @@ enum TypTag {  LolTypVer, LolTypEdg, LolTypTri, LolTypQad,
 
 
 /*----------------------------------------------------------------------------*/
-/* Global defines                                                             */
+/* Set integer and floating point sizes:                                      */
+/* default values are 32-bit integers and 64-bit floating points              */
+/* define INT64 or REAL32 to override default settings                        */
 /*----------------------------------------------------------------------------*/
 
 #ifdef INT64
@@ -34,22 +36,28 @@ enum TypTag {  LolTypVer, LolTypEdg, LolTypTri, LolTypQad,
 #define utg uint32_t
 #endif
 
+#ifdef REAL32
+#define fpn float
+#else
+#define fpn double
+#endif
+
 
 /*----------------------------------------------------------------------------*/
 /* Public procedures                                                          */
 /*----------------------------------------------------------------------------*/
 
-int64_t LolNewOctree       (itg, double *, double *, itg, itg *, itg *,
+int64_t LolNewOctree       (itg, fpn *, fpn *, itg, itg *, itg *,
                             itg, itg *, itg *, itg, itg *, itg *,
                             itg, itg *, itg *, itg, itg *, itg *,
-                            itg, itg *, itg *, itg, itg *, itg *, itg);
+                            itg, itg *, itg *, itg, itg *, itg *, itg, itg);
 size_t  LolFreeOctree      (int64_t);
-itg     LolGetBoundingBox  (int64_t , itg , itg, itg *, double [3], double [3]);
-itg     LolGetNearest      (int64_t, itg, double *, double *,
-                            double, itg (void *, itg), void * );
-itg     LolIntersectSurface(int64_t, double *, double *, double *,
-                            double, itg (void *, itg), void * );
-itg     LolProjectVertex   (int64_t, double *, itg, itg, double *);
+itg     LolGetBoundingBox  (int64_t , itg , itg, itg *, fpn [3], fpn [3]);
+itg     LolGetNearest      (int64_t, itg, fpn *, fpn *, fpn, itg (void *, itg),
+                            void * , itg);
+itg     LolIntersectSurface(int64_t, fpn *, fpn *, fpn *,
+                            fpn, itg (void *, itg), void * );
+itg     LolProjectVertex   (int64_t, fpn *, itg, itg, fpn *);
 
 
 /*----------------------------------------------------------------------------*/
