@@ -4,12 +4,12 @@
 ##################
 
 add_executable(test_libol test_libol1.c)
-target_link_libraries(test_libol OL.1 ${libMeshb_LIBRARIES} ${LINK_LIBRARIES})
+target_link_libraries(test_libol OL.1 ${libMeshb_LIBRARIES} ${math_LIBRARIES})
 install (TARGETS test_libol DESTINATION share/libOL/examples COMPONENT examples)
 
 if(LPlib_FOUND)
    add_executable(parallel_libol parallel_libol.c)
-   target_link_libraries(parallel_libol OL.1 ${libMeshb_LIBRARIES} ${LPlib_LIBRARIES} ${LINK_LIBRARIES})
+   target_link_libraries(parallel_libol OL.1 ${libMeshb_LIBRARIES} ${LPlib_LIBRARIES} ${math_LIBRARIES})
    install (TARGETS parallel_libol DESTINATION share/libOL/examples COMPONENT examples)
 endif ()
 
