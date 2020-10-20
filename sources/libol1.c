@@ -9,7 +9,7 @@
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   oct 02 2020                                        */
+/*    Last modification:   oct 19 2020                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -139,8 +139,15 @@ typedef struct
    PyrSct   pyr, BakPyr;
    PriSct   pri, BakPri;
    HexSct   hex, BakHex;
-   char    *FlgTab, *UsrPtr[ LolNmbTyp ];
-   itg     *TagTab[ MaxThr ], tag[ MaxThr ], BasIdx;
+   char    *FlgTab;
+   itg     *TagTab, tag;
+}MshThrSct;
+
+typedef struct
+{
+   MshThrSct thr[ MaxThr ];
+   char    *UsrPtr[ LolNmbTyp ];
+   itg      BasIdx;
    size_t   UsrSiz[ LolNmbTyp ], NmbItm[ LolNmbTyp ];
    fpn      aniso, eps;
 }MshSct;
@@ -166,15 +173,21 @@ typedef struct
 {
    VerSct   ver[8];
    HexSct   hex;
-   itg      tag[ MaxThr ], *ThrTag[ MaxThr ];
+   itg      tag, *ThrTag;
+   BucSct   **ThrStk;
+}OctThrSct;
+
+typedef struct
+{
+   OctThrSct thr[ MaxThr ];
    itg      MaxLvl, NmbFreOct, NmbOct, GrdLvl, NmbBuc, NmbThr;
    size_t   MemUse;
    fpn      eps, MaxSiz, MinSiz, BucSiz, bnd[2][3];
    OctSct   oct, *CurOctBlk;
-   BucSct   *grd, **ThrStk[ MaxThr ];
-   MshSct   *msh;
+   BucSct   *grd;
    LnkSct   *NexFreLnk;
    MemSct   *NexMem;
+   MshSct   *msh;
 }OctMshSct;
 
 
@@ -191,15 +204,16 @@ static void    SubOct      (MshSct *, OctMshSct *, OctSct *, fpn *, fpn *);
 static void    LnkItm      (OctMshSct *, OctSct *, itg, itg, char);
 static OctSct *GetCrd      (OctSct *, itg, fpn *, fpn *, fpn *);
 static void    GetBox      (OctMshSct *, OctSct *, itg, itg *, itg, itg *,
-                           char *, fpn [2][3], fpn, fpn *, fpn * );
+                           char *, fpn [2][3], fpn, fpn *, fpn *, itg );
 static itg     BoxIntBox   (fpn [2][3], fpn [2][3], fpn);
-static void    SetItm      (MshSct *, itg, itg, itg);
+static void    SetItm      (MshSct *, itg, itg, itg, itg);
 static void    AniTri      (MshSct *, itg);
 static void    SetSonCrd   (itg, fpn *, fpn *, fpn *, fpn *);
 static void    GetOctLnk   (MshSct *, itg, fpn *, itg *, fpn *, OctSct *,
                            fpn *, fpn *, itg (void *, itg),  void *, itg);
 static void    IntRayOct   (OctMshSct *, MshSct *, fpn *, fpn *, itg *, fpn *,
-                            OctSct *, fpn *, fpn *, itg (void *, itg),  void *);
+                            OctSct *, fpn *, fpn *, itg (void *, itg),  void *,
+                            itg);
 static void    GetBucBox   (OctMshSct *, BucSct *, fpn *, fpn *);
 static BucSct *GetBucNgb   (OctMshSct *, BucSct *, itg);
 static fpn     DisVerOct   (fpn *, fpn *, fpn *);
@@ -284,7 +298,7 @@ int64_t LolNewOctree(itg NmbVer, fpn *PtrCrd1, fpn *PtrCrd2,
                      itg NmbHex, itg *PtrHex1, itg *PtrHex2,
                      itg BasIdx, itg NmbThr)
 {
-   itg         i, j, k, EdgIdx, TotItmCnt = 0, MaxItmCnt = NmbVer, idx = 0;
+   itg         i, j, k, t, EdgIdx, TotItmCnt = 0, MaxItmCnt = NmbVer, idx = 0;
    const itg   TetEdg[6][2] = { {0,1}, {0,2}, {0,3}, {1,2}, {1,3}, {2,3} };
    const itg   TetFac[4][3] = { {1,2,3}, {2,0,3}, {3,0,1}, {0,2,1} };
    const itg   TetFacEdg[4][3] = { {5,4,3}, {2,5,1}, {0,4,2}, {3,1,0} };
@@ -296,6 +310,8 @@ int64_t LolNewOctree(itg NmbVer, fpn *PtrCrd1, fpn *PtrCrd2,
    BucSct     *buc;
    OctMshSct  *OctMsh = NULL;
    MshSct     *msh;
+   OctThrSct  *OctThr;
+   MshThrSct  *MshThr;
 
    // Make sure we have a vertex table and a valide base index (0 ou 1)
    if(!NmbVer || !PtrCrd1 || !PtrCrd2 || (BasIdx < 0) || (BasIdx > 1) )
@@ -335,21 +351,17 @@ int64_t LolNewOctree(itg NmbVer, fpn *PtrCrd1, fpn *PtrCrd2,
    msh->UsrPtr[ LolTypTet ] = (char *)PtrTet1;
    msh->UsrSiz[ LolTypTet ] = (char *)PtrTet2 - (char *)PtrTet1;
 
-   msh->FlgTab = NewMem(OctMsh, (MaxItmCnt + 1) * sizeof(char) );
-   memset(msh->FlgTab, 0, (MaxItmCnt + 1) * sizeof(char));
-
-   for(i=0;i<NmbThr;i++)
+   for(t=0;t<NmbThr;t++)
    {
-      msh->TagTab[i] = NewMem(OctMsh, (MaxItmCnt + 1) * sizeof(itg) );
-      memset(msh->TagTab[i], 0, (MaxItmCnt + 1) * sizeof(itg));
-      msh->tag[i] = 0;
-   }
+      MshThr = &msh->thr[t];
 
-   for(i=0;i<3;i++)
-   {
-      msh->tri.ver[i] = &msh->ver[i];
-      msh->tri.edg[i].ver[0] = &msh->ver[ (i+1)%3 ];
-      msh->tri.edg[i].ver[1] = &msh->ver[ (i+2)%3 ];
+      MshThr->FlgTab = NewMem(OctMsh, (MaxItmCnt + 1) * sizeof(char) );
+      memset(MshThr->FlgTab, 0, (MaxItmCnt + 1) * sizeof(char));
+
+      MshThr->TagTab = NewMem(OctMsh, (MaxItmCnt + 1) * sizeof(itg) );
+      memset(MshThr->TagTab, 0, (MaxItmCnt + 1) * sizeof(itg));
+
+      MshThr->tag = 0;
    }
 
    // Setup the octree structure
@@ -363,123 +375,126 @@ int64_t LolNewOctree(itg NmbVer, fpn *PtrCrd1, fpn *PtrCrd2,
    OctMsh->grd    = NewMem(OctMsh, CUB(OctMsh->NmbBuc) * sizeof(BucSct));
    OctMsh->NmbThr = NmbThr;
 
-   for(i=0;i<NmbThr;i++)
+   for(t=0;t<NmbThr;t++)
    {
-      OctMsh->ThrStk[i] = NewMem(OctMsh, CUB(OctMsh->NmbBuc) * sizeof(void *));
-      OctMsh->ThrTag[i] = NewMem(OctMsh, CUB(OctMsh->NmbBuc) * sizeof(itg));
-   }
+      MshThr = &msh->thr[t];
+      OctThr = &OctMsh->thr[t];
 
-   // Setup the temporary edge for local geometric calculations
-   for(i=0;i<2;i++)
-      msh->edg.ver[i] = &msh->ver[i];
+      OctThr->ThrStk = NewMem(OctMsh, CUB(OctMsh->NmbBuc) * sizeof(void *));
+      OctThr->ThrTag = NewMem(OctMsh, CUB(OctMsh->NmbBuc) * sizeof(itg));
 
-   // Setup the temporary triangle for local geometric calculations
-   for(i=0;i<3;i++)
-   {
-      msh->tri.ver[i] = &msh->ver[i];
-      msh->tri.edg[i].ver[0] = &msh->ver[ (i+1)%3 ];
-      msh->tri.edg[i].ver[1] = &msh->ver[ (i+2)%3 ];
-   }
+      // Setup the temporary edge for local geometric calculations
+      for(i=0;i<2;i++)
+         MshThr->edg.ver[i] = &MshThr->ver[i];
 
-   // Setup the temporary tetrahedron for local geometric calculations
-   for(i=0;i<4;i++)
-      msh->tet.ver[i] = &msh->ver[i];
-
-   for(i=0;i<4;i++)
-   {
-      for(j=0;j<3;j++)
-         msh->tet.tri[i].ver[j] = msh->tet.ver[ TetFac[i][j] ];
-
-      for(j=0;j<3;j++)
+      // Setup the temporary triangle for local geometric calculations
+      for(i=0;i<3;i++)
       {
-         EdgIdx = TetFacEdg[i][j];
-         msh->tet.tri[i].edg[j].ver[0] = msh->tet.ver[ TetEdg[ EdgIdx ][0] ];
-         msh->tet.tri[i].edg[j].ver[1] = msh->tet.ver[ TetEdg[ EdgIdx ][1] ];
+         MshThr->tri.ver[i] = &MshThr->ver[i];
+         MshThr->tri.edg[i].ver[0] = &MshThr->ver[ (i+1)%3 ];
+         MshThr->tri.edg[i].ver[1] = &MshThr->ver[ (i+2)%3 ];
       }
+
+      // Setup the temporary tetrahedron for local geometric calculations
+      for(i=0;i<4;i++)
+         MshThr->tet.ver[i] = &MshThr->ver[i];
+
+      for(i=0;i<4;i++)
+      {
+         for(j=0;j<3;j++)
+            MshThr->tet.tri[i].ver[j] = MshThr->tet.ver[ TetFac[i][j] ];
+
+         for(j=0;j<3;j++)
+         {
+            EdgIdx = TetFacEdg[i][j];
+            MshThr->tet.tri[i].edg[j].ver[0] = MshThr->tet.ver[ TetEdg[ EdgIdx ][0] ];
+            MshThr->tet.tri[i].edg[j].ver[1] = MshThr->tet.ver[ TetEdg[ EdgIdx ][1] ];
+         }
+      }
+
+      for(i=0;i<6;i++)
+         for(j=0;j<2;j++)
+            MshThr->tet.edg[i].ver[j] = MshThr->tet.ver[ TetEdg[i][j] ];
+
+      // Setup the temporary hex for local geometric calculations
+      for(i=0;i<8;i++)
+         OctThr->hex.ver[i] = &OctThr->ver[i];
+
+      for(i=0;i<12;i++)
+      {
+         OctThr->hex.edg[i].ver[0] =  &OctThr->ver[ tvpe[i][0] ];
+         OctThr->hex.edg[i].ver[1] =  &OctThr->ver[ tvpe[i][1] ];
+      }
+
+      for(i=0;i<6;i++)
+         for(j=0;j<4;j++)
+            OctThr->hex.qad[i].ver[j] =  &OctThr->ver[ tvpf[i][j] ];
+
+      for(i=0;i<4;i++)
+      {
+         OctThr->hex.edg[i].tng[0] = 1;
+         OctThr->hex.edg[i].tng[1] = 0;
+         OctThr->hex.edg[i].tng[2] = 0;
+
+         OctThr->hex.edg[i+4].tng[0] = 0;
+         OctThr->hex.edg[i+4].tng[1] = 1;
+         OctThr->hex.edg[i+4].tng[2] = 0;
+
+         OctThr->hex.edg[i+8].tng[0] = 0;
+         OctThr->hex.edg[i+8].tng[1] = 0;
+         OctThr->hex.edg[i+8].tng[2] = 1;
+      }
+
+      OctThr->hex.qad[0].nrm[0] = 1;
+      OctThr->hex.qad[0].nrm[1] = 0;
+      OctThr->hex.qad[0].nrm[2] = 0;
+
+      OctThr->hex.qad[1].nrm[0] = -1;
+      OctThr->hex.qad[1].nrm[1] = 0;
+      OctThr->hex.qad[1].nrm[2] = 0;
+
+      OctThr->hex.qad[2].nrm[0] = 0;
+      OctThr->hex.qad[2].nrm[1] = 1;
+      OctThr->hex.qad[2].nrm[2] = 0;
+
+      OctThr->hex.qad[3].nrm[0] = 0;
+      OctThr->hex.qad[3].nrm[1] = -1;
+      OctThr->hex.qad[3].nrm[2] = 0;
+
+      OctThr->hex.qad[4].nrm[0] = 0;
+      OctThr->hex.qad[4].nrm[1] = 0;
+      OctThr->hex.qad[4].nrm[2] = 1;
+
+      OctThr->hex.qad[5].nrm[0] = 0;
+      OctThr->hex.qad[5].nrm[1] = 0;
+      OctThr->hex.qad[5].nrm[2] = -1;
    }
-
-   for(i=0;i<6;i++)
-      for(j=0;j<2;j++)
-         msh->tet.edg[i].ver[j] = msh->tet.ver[ TetEdg[i][j] ];
-
-   // Setup the temporary hex for local geometric calculations
-   for(i=0;i<8;i++)
-      OctMsh->hex.ver[i] = &OctMsh->ver[i];
-
-   for(i=0;i<12;i++)
-   {
-      OctMsh->hex.edg[i].ver[0] =  &OctMsh->ver[ tvpe[i][0] ];
-      OctMsh->hex.edg[i].ver[1] =  &OctMsh->ver[ tvpe[i][1] ];
-   }
-
-   for(i=0;i<6;i++)
-      for(j=0;j<4;j++)
-         OctMsh->hex.qad[i].ver[j] =  &OctMsh->ver[ tvpf[i][j] ];
-
-   for(i=0;i<4;i++)
-   {
-      OctMsh->hex.edg[i].tng[0] = 1;
-      OctMsh->hex.edg[i].tng[1] = 0;
-      OctMsh->hex.edg[i].tng[2] = 0;
-
-      OctMsh->hex.edg[i+4].tng[0] = 0;
-      OctMsh->hex.edg[i+4].tng[1] = 1;
-      OctMsh->hex.edg[i+4].tng[2] = 0;
-
-      OctMsh->hex.edg[i+8].tng[0] = 0;
-      OctMsh->hex.edg[i+8].tng[1] = 0;
-      OctMsh->hex.edg[i+8].tng[2] = 1;
-   }
-
-   OctMsh->hex.qad[0].nrm[0] = 1;
-   OctMsh->hex.qad[0].nrm[1] = 0;
-   OctMsh->hex.qad[0].nrm[2] = 0;
-
-   OctMsh->hex.qad[1].nrm[0] = -1;
-   OctMsh->hex.qad[1].nrm[1] = 0;
-   OctMsh->hex.qad[1].nrm[2] = 0;
-
-   OctMsh->hex.qad[2].nrm[0] = 0;
-   OctMsh->hex.qad[2].nrm[1] = 1;
-   OctMsh->hex.qad[2].nrm[2] = 0;
-
-   OctMsh->hex.qad[3].nrm[0] = 0;
-   OctMsh->hex.qad[3].nrm[1] = -1;
-   OctMsh->hex.qad[3].nrm[2] = 0;
-
-   OctMsh->hex.qad[4].nrm[0] = 0;
-   OctMsh->hex.qad[4].nrm[1] = 0;
-   OctMsh->hex.qad[4].nrm[2] = 1;
-
-   OctMsh->hex.qad[5].nrm[0] = 0;
-   OctMsh->hex.qad[5].nrm[1] = 0;
-   OctMsh->hex.qad[5].nrm[2] = -1;
 
    // Insert each vertices in the octree
    for(i=0;i<msh->NmbItm[ LolTypVer ];i++)
    {
-      SetItm(msh, LolTypVer, i + BasIdx, 0);
+      SetItm(msh, LolTypVer, i + BasIdx, 0, 0);
       AddVer(msh, OctMsh, &OctMsh->oct, OctMsh->bnd[0], OctMsh->bnd[1]);
    }
 
    // Insert each edges in the octree
    for(i=0;i<msh->NmbItm[ LolTypEdg ];i++)
    {
-      SetItm(msh, LolTypEdg, i + BasIdx, 0);
+      SetItm(msh, LolTypEdg, i + BasIdx, 0, 0);
       AddEdg(msh, OctMsh, &OctMsh->oct, OctMsh->bnd[0], OctMsh->bnd[1]);
    }
 
    // Insert each triangles in the octree
    for(i=0;i<msh->NmbItm[ LolTypTri ];i++)
    {
-      SetItm(msh, LolTypTri, i + BasIdx, TngFlg | AniFlg);
+      SetItm(msh, LolTypTri, i + BasIdx, TngFlg | AniFlg, 0);
       AddTri(msh, OctMsh, &OctMsh->oct, OctMsh->bnd[0], OctMsh->bnd[1]);
    }
 
    // Insert each tetrahedra in the octree
    for(i=0;i<msh->NmbItm[ LolTypTet ];i++)
    {
-      SetItm(msh, LolTypTet, i + BasIdx, TngFlg);
+      SetItm(msh, LolTypTet, i + BasIdx, TngFlg, 0);
       AddTet(msh, OctMsh, &OctMsh->oct, OctMsh->bnd[0], OctMsh->bnd[1]);
    }
 
@@ -539,8 +554,8 @@ size_t LolFreeOctree(int64_t OctIdx)
 /* Search the octree for triangles included in this box                       */
 /*----------------------------------------------------------------------------*/
 
-itg LolGetBoundingBox(  int64_t OctIdx, itg typ, itg MaxItm,
-                        itg *ItmTab, fpn MinCrd[3], fpn MaxCrd[3] )
+itg LolGetBoundingBox(  int64_t OctIdx, itg typ, itg MaxItm, itg *ItmTab,
+                        fpn MinCrd[3], fpn MaxCrd[3], itg ThrIdx )
 {
    itg i, NmbItm = 0;
    fpn box[2][3] = { {MinCrd[0], MinCrd[1], MinCrd[2]},
@@ -548,10 +563,11 @@ itg LolGetBoundingBox(  int64_t OctIdx, itg typ, itg MaxItm,
    OctMshSct *OctMsh = (OctMshSct *)OctIdx;
 
    GetBox(  OctMsh, &OctMsh->oct, typ, &NmbItm, MaxItm, ItmTab,
-            OctMsh->msh->FlgTab, box, OctMsh->eps, OctMsh->bnd[0], OctMsh->bnd[1] );
+            OctMsh->msh->thr[ ThrIdx ].FlgTab, box, OctMsh->eps,
+            OctMsh->bnd[0], OctMsh->bnd[1], ThrIdx );
 
    for(i=0;i<NmbItm;i++)
-      OctMsh->msh->FlgTab[ ItmTab[i] ] = 0;
+      OctMsh->msh->thr[ ThrIdx ].FlgTab[ ItmTab[i] ] = 0;
 
    return(NmbItm);
 }
@@ -596,11 +612,13 @@ static OctSct *GetCrd(  OctSct *oct, itg MaxLvl, fpn VerCrd[3],
 
 static void GetBox(  OctMshSct *OctMsh, OctSct *oct, itg typ, itg *NmbItm,
                      itg MaxItm, itg *ItmTab, char *FlgTab, fpn box[2][3],
-                     fpn eps, fpn MinCrd[3], fpn MaxCrd[3] )
+                     fpn eps, fpn MinCrd[3], fpn MaxCrd[3], itg ThrIdx )
 {
    itg i;
    LnkSct *lnk;
    HexSct hex;
+   OctThrSct *ThrOct = &OctMsh->thr[ ThrIdx ];
+   MshThrSct *ThrMsh = &OctMsh->msh->thr[ ThrIdx ];
    fpn xmid = (MinCrd[0] + MaxCrd[0])/2.;
    fpn ymid = (MinCrd[1] + MaxCrd[1])/2.;
    fpn zmid = (MinCrd[2] + MaxCrd[2])/2.;
@@ -619,12 +637,12 @@ static void GetBox(  OctMshSct *OctMsh, OctSct *oct, itg typ, itg *NmbItm,
       // Recursively intersect the box with the octree
       for(i=0;i<8;i++)
          if(BoxIntBox(box, son[i], eps))
-            GetBox(  OctMsh, oct->son+i, typ, NmbItm, MaxItm, ItmTab, FlgTab,
-                     box, eps, son[i][0], son[i][1] );
+            GetBox(  OctMsh, oct->son+i, typ, NmbItm, MaxItm, ItmTab,
+                     FlgTab, box, eps, son[i][0], son[i][1], ThrIdx );
    }
    else if((lnk = oct->lnk) && (*NmbItm < MaxItm) )
    {
-      SetTmpHex(&OctMsh->hex, box[0], box[1]);
+      SetTmpHex(&ThrOct->hex, box[0], box[1]);
 
       // When a terminal octant is reached, add its linked entities
       // to the table and flag them to avoid duplicates
@@ -635,30 +653,30 @@ static void GetBox(  OctMshSct *OctMsh, OctSct *oct, itg typ, itg *NmbItm,
 
          if(lnk->typ == LolTypVer)
          {
-            SetItm(OctMsh->msh, LolTypVer, lnk->idx, 0);
+            SetItm(OctMsh->msh, LolTypVer, lnk->idx, 0, ThrIdx);
 
-            if(!VerInsHex(&OctMsh->msh->ver[0], &OctMsh->hex))
+            if(!VerInsHex(&ThrMsh->ver[0], &ThrOct->hex))
                continue;
          }
          else if(lnk->typ == LolTypEdg)
          {
-            SetItm(OctMsh->msh, LolTypEdg, lnk->idx, 0);
+            SetItm(OctMsh->msh, LolTypEdg, lnk->idx, 0, ThrIdx);
 
-            if(!EdgIntHex(&OctMsh->msh->edg, &OctMsh->hex, OctMsh->eps))
+            if(!EdgIntHex(&ThrMsh->edg, &ThrOct->hex, OctMsh->eps))
                continue;
          }
          else if(lnk->typ == LolTypTri)
          {
-            SetItm(OctMsh->msh, LolTypTri, lnk->idx, TngFlg);
+            SetItm(OctMsh->msh, LolTypTri, lnk->idx, TngFlg, ThrIdx);
 
-            if(!TriIntHex(&OctMsh->msh->tri, &OctMsh->hex, OctMsh->eps))
+            if(!TriIntHex(&ThrMsh->tri, &ThrOct->hex, OctMsh->eps))
                continue;
          }
          else if(lnk->typ == LolTypTet)
          {
-            SetItm(OctMsh->msh, LolTypTet, lnk->idx, TngFlg);
+            SetItm(OctMsh->msh, LolTypTet, lnk->idx, TngFlg, ThrIdx);
 
-            if(!TetIntHex(&OctMsh->msh->tet, &OctMsh->hex, OctMsh->eps))
+            if(!TetIntHex(&ThrMsh->tet, &ThrOct->hex, OctMsh->eps))
                continue;
          }
 
@@ -679,19 +697,21 @@ static void GetBox(  OctMshSct *OctMsh, OctSct *oct, itg typ, itg *NmbItm,
 itg LolGetNearest(int64_t OctIdx, itg typ, fpn *VerCrd, fpn *MinDis, fpn MaxDis,
                   itg (UsrPrc)(void *, itg), void *UsrDat, itg ThrIdx)
 {
-   OctMshSct   *OctMsh = (OctMshSct *)OctIdx;
-   itg         i, ins=0, out=0, MinItm = 0, ini[3], *tag;
+   OctMshSct  *OctMsh = (OctMshSct *)OctIdx;
+   itg         i, ins = 0, out = 0, MinItm = 0, ini[3], *tag;
    fpn         MinCrd[3], MaxCrd[3], vec[3];
-   MshSct      *msh = OctMsh->msh;
-   BucSct      *IniBuc, *buc, *ngb, **stk;
+   MshSct     *msh = OctMsh->msh;
+   BucSct     *IniBuc, *buc, *ngb, **stk;
+   OctThrSct  *ThrOct = &OctMsh->thr[ ThrIdx ];
+   MshThrSct  *ThrMsh = &OctMsh->msh->thr[ ThrIdx ];
 
    if( (ThrIdx < 0) || (ThrIdx >= OctMsh->NmbThr) )
       return(0);
 
-   OctMsh->tag[ ThrIdx ]++;
-   msh->tag[ ThrIdx ] = OctMsh->tag[ ThrIdx ];
-   tag = OctMsh->ThrTag[ ThrIdx ];
-   stk = OctMsh->ThrStk[ ThrIdx ];
+   ThrOct->tag++;
+   ThrMsh->tag = ThrOct->tag;
+   tag = ThrOct->ThrTag;
+   stk = ThrOct->ThrStk;
 
    if(MaxDis > 0.)
       *MinDis = MaxDis * MaxDis;
@@ -712,7 +732,7 @@ itg LolGetNearest(int64_t OctIdx, itg typ, fpn *VerCrd, fpn *MinDis, fpn MaxDis,
 
    // Push the octant containing the starting point on the lifo stack
    stk[ ins++ ] = IniBuc;
-   tag[ IniBuc->idx ] = OctMsh->tag[ ThrIdx ];
+   tag[ IniBuc->idx ] = ThrOct->tag;
 
    // Flood fill processing of the grid : 
    // check octant's contents distance against the closest item
@@ -726,7 +746,7 @@ itg LolGetNearest(int64_t OctIdx, itg typ, fpn *VerCrd, fpn *MinDis, fpn MaxDis,
       // Push unprocessed neighbours on the stack as long as they are not too far
       for(i=0;i<6;i++)
       {
-         if( !(ngb = GetBucNgb(OctMsh, buc, i)) || (tag[ ngb->idx ] == OctMsh->tag[ ThrIdx ]) )
+         if( !(ngb = GetBucNgb(OctMsh, buc, i)) || (tag[ ngb->idx ] == ThrOct->tag) )
             continue;
 
          GetBucBox(OctMsh, ngb, MinCrd, MaxCrd);
@@ -734,7 +754,7 @@ itg LolGetNearest(int64_t OctIdx, itg typ, fpn *VerCrd, fpn *MinDis, fpn MaxDis,
          if(DisVerOct(VerCrd, MinCrd, MaxCrd) < *MinDis)
          {
             stk[ ins++ ] = ngb;
-            tag[ ngb->idx ] = OctMsh->tag[ ThrIdx ];
+            tag[ ngb->idx ] = ThrOct->tag;
          }
       }
    }
@@ -750,15 +770,19 @@ itg LolGetNearest(int64_t OctIdx, itg typ, fpn *VerCrd, fpn *MinDis, fpn MaxDis,
 /*----------------------------------------------------------------------------*/
 
 itg LolIntersectSurface(int64_t OctIdx, fpn *VerCrd, fpn *VerTng, fpn *MinDis,
-                        fpn MaxDis, itg (UsrPrc)(void *, itg), void *UsrDat)
+                        fpn MaxDis, itg (UsrPrc)(void *, itg), void *UsrDat,
+                        itg ThrIdx )
 {
-   OctMshSct *OctMsh = (OctMshSct *)OctIdx;
-   itg i, ins=0, out=0, MinItm = 0, ini[3], *tag = OctMsh->ThrTag[0];
-   fpn MinCrd[3], MaxCrd[3], vec[3];
-   MshSct *msh = OctMsh->msh;
-   BucSct *IniBuc, *buc, *ngb, **stk = OctMsh->ThrStk[0];
-   OctMsh->tag[0]++;
-   msh->tag[0] = OctMsh->tag[0];
+   OctMshSct  *OctMsh = (OctMshSct *)OctIdx;
+   OctThrSct  *ThrOct = &OctMsh->thr[ ThrIdx ];
+   MshThrSct  *ThrMsh = &OctMsh->msh->thr[ ThrIdx ];
+   itg         i, ins=0, out=0, MinItm = 0, ini[3], *tag = ThrOct->ThrTag;
+   fpn         MinCrd[3], MaxCrd[3], vec[3];
+   MshSct     *msh = OctMsh->msh;
+   BucSct     *IniBuc, *buc, *ngb, **stk = ThrOct->ThrStk;
+
+   ThrOct->tag++;
+   ThrMsh->tag = ThrOct->tag;
 
    if(MaxDis > 0.)
       *MinDis = MaxDis * MaxDis;
@@ -779,7 +803,7 @@ itg LolIntersectSurface(int64_t OctIdx, fpn *VerCrd, fpn *VerTng, fpn *MinDis,
 
    // Push the octant containing the starting point on the lifo stack
    stk[ ins++ ] = IniBuc;
-   tag[ IniBuc->idx ] = OctMsh->tag[0];
+   tag[ IniBuc->idx ] = ThrOct->tag;
 
    // Flood fill processing of the grid : 
    // check octant's contents distance against the closest item
@@ -788,13 +812,13 @@ itg LolIntersectSurface(int64_t OctIdx, fpn *VerCrd, fpn *VerTng, fpn *MinDis,
       buc = stk[ out++ ];
       GetBucBox(  OctMsh, buc, MinCrd, MaxCrd);
       IntRayOct(  OctMsh, msh, VerCrd, VerTng, &MinItm, MinDis, buc->oct,
-                  MinCrd, MaxCrd, UsrPrc, UsrDat );
+                  MinCrd, MaxCrd, UsrPrc, UsrDat, ThrIdx );
 
       // Push unprocessed neighbours intersected by the line
       // on the stack as long as they are not too far
       for(i=0;i<6;i++)
       {
-         if( !(ngb = GetBucNgb(OctMsh, buc, i)) || (tag[ ngb->idx ] == OctMsh->tag[0]) )
+         if( !(ngb = GetBucNgb(OctMsh, buc, i)) || (tag[ ngb->idx ] == ThrOct->tag) )
             continue;
 
          GetBucBox(OctMsh, ngb, MinCrd, MaxCrd);
@@ -805,7 +829,7 @@ itg LolIntersectSurface(int64_t OctIdx, fpn *VerCrd, fpn *VerTng, fpn *MinDis,
          if(DisVerOct(VerCrd, MinCrd, MaxCrd) < *MinDis)
          {
             stk[ ins++ ] = ngb;
-            tag[ ngb->idx ] = OctMsh->tag[0];
+            tag[ ngb->idx ] = ThrOct->tag;
          }
       }
    }
@@ -821,13 +845,15 @@ itg LolIntersectSurface(int64_t OctIdx, fpn *VerCrd, fpn *VerTng, fpn *MinDis,
 /*----------------------------------------------------------------------------*/
 
 itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
-                     itg MinItm, fpn *MinCrd)
+                     itg MinItm, fpn *MinCrd, itg ThrIdx)
 {
-   OctMshSct *OctMsh = (OctMshSct *)OctIdx;
-   MshSct *msh = OctMsh->msh;
-   VerSct TmpVer;
-   itg i, EdgFlg = 0;
-   fpn CurDis, MinDis = DBL_MAX;
+   OctMshSct  *OctMsh = (OctMshSct *)OctIdx;
+   OctThrSct  *ThrOct = &OctMsh->thr[ ThrIdx ];
+   MshThrSct  *ThrMsh = &OctMsh->msh->thr[ ThrIdx ];
+   MshSct     *msh = OctMsh->msh;
+   VerSct      TmpVer;
+   itg         i, EdgFlg = 0;
+   fpn         CurDis, MinDis = DBL_MAX;
 
    if(typ == LolTypVer)
    {
@@ -839,30 +865,30 @@ itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
    else if(typ == LolTypEdg)
    {
       // Edge case, the closest position may be on the edge itself
-      SetItm(msh, LolTypEdg, MinItm, 0);
-      PrjVerLin(VerCrd, msh->edg.ver[0]->crd, msh->edg.tng, TmpVer.crd);
+      SetItm(msh, LolTypEdg, MinItm, 0, ThrIdx);
+      PrjVerLin(VerCrd, ThrMsh->edg.ver[0]->crd, ThrMsh->edg.tng, TmpVer.crd);
 
-      if(VerInsEdg(&msh->edg, &TmpVer, OctMsh->eps))
+      if(VerInsEdg(&ThrMsh->edg, &TmpVer, OctMsh->eps))
       {
          CpyVec(TmpVer.crd, MinCrd);
          return(2);
       }
 
       // Or one of its two vertices
-      if(dis(VerCrd, msh->edg.ver[0]->crd) < dis(VerCrd, msh->edg.ver[1]->crd))
-         CpyVec(msh->edg.ver[0]->crd, MinCrd);
+      if(dis(VerCrd, ThrMsh->edg.ver[0]->crd) < dis(VerCrd, ThrMsh->edg.ver[1]->crd))
+         CpyVec(ThrMsh->edg.ver[0]->crd, MinCrd);
       else
-         CpyVec(msh->edg.ver[1]->crd, MinCrd);
+         CpyVec(ThrMsh->edg.ver[1]->crd, MinCrd);
 
       return(1);
    }
    else if(typ == LolTypTri)
    {
       // Triangle case, the closest position may be on the triangle itself
-      SetItm(msh, LolTypTri, MinItm, TngFlg);
-      PrjVerPla(VerCrd, msh->tri.ver[0]->crd, msh->tri.nrm, TmpVer.crd);
+      SetItm(msh, LolTypTri, MinItm, TngFlg, ThrIdx);
+      PrjVerPla(VerCrd, ThrMsh->tri.ver[0]->crd, ThrMsh->tri.nrm, TmpVer.crd);
 
-      if(VerInsTri(&msh->tri, &TmpVer, OctMsh->eps))
+      if(VerInsTri(&ThrMsh->tri, &TmpVer, OctMsh->eps))
       {
          CpyVec(TmpVer.crd, MinCrd);
          return(3);
@@ -871,9 +897,10 @@ itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
       // Or fall inside one of its three edges
       for(i=0;i<3;i++)
       {
-         PrjVerLin(VerCrd, msh->tri.edg[i].ver[0]->crd, msh->tri.edg[i].tng, TmpVer.crd);
+         PrjVerLin(  VerCrd, ThrMsh->tri.edg[i].ver[0]->crd,
+                     ThrMsh->tri.edg[i].tng, TmpVer.crd );
 
-         if(VerInsEdg(&msh->tri.edg[i], &TmpVer, OctMsh->eps)
+         if(VerInsEdg(&ThrMsh->tri.edg[i], &TmpVer, OctMsh->eps)
          && (dis(VerCrd, TmpVer.crd) < MinDis) )
          {
             MinDis = dis(VerCrd, TmpVer.crd);
@@ -885,12 +912,12 @@ itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
       // Or one of the three vertices
       for(i=0;i<3;i++)
       {
-         CurDis = dis(VerCrd, msh->tri.ver[i]->crd);
+         CurDis = dis(VerCrd, ThrMsh->tri.ver[i]->crd);
 
          if(CurDis < MinDis)
          {
             MinDis = CurDis;
-            CpyVec(msh->tri.ver[i]->crd, MinCrd);
+            CpyVec(ThrMsh->tri.ver[i]->crd, MinCrd);
             EdgFlg = 0; // la meilleure projection n'est plus sur un edge
          }
       }
@@ -987,9 +1014,10 @@ static void GetOctLnk(  MshSct *msh, itg typ, fpn VerCrd[3], itg *MinItm,
                         fpn *MinDis, OctSct *oct, fpn MinCrd[3], fpn MaxCrd[3],
                         itg (UsrPrc)(void *, itg), void *UsrDat, itg ThrIdx )
 {
-   itg i, *IdxTab;
-   fpn CurDis, SonMin[3], SonMax[3];
-   LnkSct *lnk;
+   itg         i, *IdxTab;
+   fpn         CurDis, SonMin[3], SonMax[3];
+   LnkSct     *lnk;
+   MshThrSct  *ThrMsh = &msh->thr[ ThrIdx ];
 
    if(oct->sub)
    {
@@ -1018,26 +1046,26 @@ static void GetOctLnk(  MshSct *msh, itg typ, fpn VerCrd[3], itg *MinItm,
             CurDis = DisPow(VerCrd, (fpn *)GetPtrItm(msh, LolTypVer, lnk->idx));
          else if(lnk->typ == LolTypEdg)
          {
-            SetItm(msh, LolTypEdg, lnk->idx, 0);
-            CurDis = DisVerEdg(VerCrd, &msh->edg);
+            SetItm(msh, LolTypEdg, lnk->idx, 0, ThrIdx);
+            CurDis = DisVerEdg(VerCrd, &ThrMsh->edg);
          }
          else if(lnk->typ == LolTypTri)
          {
-            if(msh->TagTab[ ThrIdx ][ lnk->idx ] == msh->tag[ ThrIdx ])
+            if(ThrMsh->TagTab[ lnk->idx ] == ThrMsh->tag)
                continue;
 
-            msh->TagTab[ ThrIdx ][ lnk->idx ] = msh->tag[ ThrIdx ];
-            SetItm(msh, LolTypTri, lnk->idx, 0);
+            ThrMsh->TagTab[ lnk->idx ] = ThrMsh->tag;
+            SetItm(msh, LolTypTri, lnk->idx, 0, ThrIdx);
 
             if(UsrPrc && !UsrPrc(UsrDat, lnk->idx))
                continue;
 
-            CurDis = DisVerTri(msh, VerCrd, &msh->tri);
+            CurDis = DisVerTri(msh, VerCrd, &ThrMsh->tri);
          }
          else if(lnk->typ == LolTypTet)
          {
-            SetItm(msh, LolTypTet, lnk->idx, 0);
-            CurDis = DisVerTet(msh, VerCrd, &msh->tet);
+            SetItm(msh, LolTypTet, lnk->idx, 0, ThrIdx);
+            CurDis = DisVerTet(msh, VerCrd, &ThrMsh->tet);
          }
 
          if(CurDis < *MinDis)
@@ -1056,12 +1084,14 @@ static void GetOctLnk(  MshSct *msh, itg typ, fpn VerCrd[3], itg *MinItm,
 
 static void IntRayOct(  OctMshSct *OctMsh, MshSct *msh, fpn *crd, fpn *tng,
                         itg *MinItm, fpn *MinDis, OctSct *oct, fpn MinCrd[3],
-                        fpn MaxCrd[3], itg (UsrPrc)(void *, itg), void *UsrDat )
+                        fpn MaxCrd[3], itg (UsrPrc)(void *, itg), void *UsrDat,
+                        itg ThrIdx )
 {
-   itg i, *IdxTab;
-   fpn CurDis, SonMin[3], SonMax[3];
-   VerSct IntVer;
-   LnkSct *lnk;
+   itg         i, *IdxTab;
+   fpn         CurDis, SonMin[3], SonMax[3];
+   VerSct      IntVer;
+   LnkSct     *lnk;
+   MshThrSct  *ThrMsh = &OctMsh->msh->thr[ ThrIdx ];
 
    if(oct->sub)
    {
@@ -1076,7 +1106,7 @@ static void IntRayOct(  OctMshSct *OctMsh, MshSct *msh, fpn *crd, fpn *tng,
             continue;
 
          IntRayOct(  OctMsh, msh, crd, tng, MinItm, MinDis, oct->son+i,
-                     SonMin, SonMax, UsrPrc, UsrDat );
+                     SonMin, SonMax, UsrPrc, UsrDat, ThrIdx );
       }
    }
    else if((lnk = oct->lnk))
@@ -1088,20 +1118,21 @@ static void IntRayOct(  OctMshSct *OctMsh, MshSct *msh, fpn *crd, fpn *tng,
          if(lnk->typ != LolTypTri)
             continue;
 
-         if(msh->TagTab[ lnk->idx ] == msh->tag)
+         if(ThrMsh->TagTab[ lnk->idx ] == ThrMsh->tag)
             continue;
 
-         msh->TagTab[ lnk->idx ] = msh->tag;
-         SetItm(msh, LolTypTri, lnk->idx, 0);
+         ThrMsh->TagTab[ lnk->idx ] = ThrMsh->tag;
+         SetItm(msh, LolTypTri, lnk->idx, 0, ThrIdx);
 
          if(UsrPrc && !UsrPrc(UsrDat, lnk->idx))
             continue;
 
-         if(DotPrd(tng, msh->tri.nrm) != 0.)
+         if(DotPrd(tng, ThrMsh->tri.nrm) != 0.)
          {
-            LinIntPla(crd, tng, msh->tri.ver[0]->crd, msh->tri.nrm, IntVer.crd);
+            LinIntPla(  crd, tng, ThrMsh->tri.ver[0]->crd,
+                        ThrMsh->tri.nrm, IntVer.crd );
 
-            if(VerInsTri(&msh->tri, &IntVer, msh->eps))
+            if(VerInsTri(&ThrMsh->tri, &IntVer, msh->eps))
             {
                CurDis = DisPow(IntVer.crd, crd);
 
@@ -1121,66 +1152,67 @@ static void IntRayOct(  OctMshSct *OctMsh, MshSct *msh, fpn *crd, fpn *tng,
 /* Setup an arbitrary geometrical item structure from its index               */
 /*----------------------------------------------------------------------------*/
 
-static void SetItm(MshSct *msh, itg typ, itg idx, itg flg)
+static void SetItm(MshSct *msh, itg typ, itg idx, itg flg, itg ThrIdx)
 {
-   itg i, *IdxTab;
-   const itg TetEdgFac[6][2] = { {2,3}, {1,3}, {1,2}, {0,3}, {0,2}, {0,1} };
+   itg         i, *IdxTab;
+   const itg   TetEdgFac[6][2] = { {2,3}, {1,3}, {1,2}, {0,3}, {0,2}, {0,1} };
+   MshThrSct  *ThrMsh = &msh->thr[ ThrIdx ];
 
    if(typ == LolTypVer)
    {
-      msh->ver[0].idx = idx;
-      CpyVec((fpn *)GetPtrItm(msh, typ, idx), msh->ver[0].crd);
+      ThrMsh->ver[0].idx = idx;
+      CpyVec((fpn *)GetPtrItm(msh, typ, idx), ThrMsh->ver[0].crd);
    }
    else if(typ == LolTypEdg)
    {
       // Setup the temporary edge structure with this edge's ID
-      msh->edg.idx = idx;
+      ThrMsh->edg.idx = idx;
       IdxTab = (itg *)GetPtrItm(msh, typ, idx);
 
       for(i=0;i<2;i++)
-         CpyVec((fpn *)GetPtrItm(msh, LolTypVer, IdxTab[i]), msh->edg.ver[i]->crd);
+         CpyVec((fpn *)GetPtrItm(msh, LolTypVer, IdxTab[i]), ThrMsh->edg.ver[i]->crd);
 
-      SetEdgTng(&msh->edg);
+      SetEdgTng(&ThrMsh->edg);
    }
    else if(typ == LolTypTri)
    {
       // Setup the temporary triangle structure with this triangle's ID
-      msh->tri.idx = idx;
+      ThrMsh->tri.idx = idx;
       IdxTab = (itg *)GetPtrItm(msh, typ, idx);
 
       for(i=0;i<3;i++)
-         CpyVec((fpn *)GetPtrItm(msh, LolTypVer, IdxTab[i]), msh->tri.ver[i]->crd);
+         CpyVec((fpn *)GetPtrItm(msh, LolTypVer, IdxTab[i]), ThrMsh->tri.ver[i]->crd);
 
-      SetTriNrm(&msh->tri);
+      SetTriNrm(&ThrMsh->tri);
 
       // Set triangle edge tangents only on request
       if(flg & TngFlg)
          for(i=0;i<3;i++)
-            SetEdgTng(&msh->tri.edg[i]);
+            SetEdgTng(&ThrMsh->tri.edg[i]);
 
       // Compute the aspect ratio on demand
       if(flg & AniFlg)
-         msh->tri.ani = GetTriAni(&msh->tri);
+         ThrMsh->tri.ani = GetTriAni(&ThrMsh->tri);
    }
    else if(typ == LolTypTet)
    {
       // Setup the temporary tetrahedron structure with this tet ID
-      msh->tet.idx = idx;
+      ThrMsh->tet.idx = idx;
       IdxTab = (itg *)GetPtrItm(msh, typ, idx);
 
       for(i=0;i<4;i++)
-         CpyVec((fpn *)GetPtrItm(msh, LolTypVer, IdxTab[i]), msh->tet.ver[i]->crd);
+         CpyVec((fpn *)GetPtrItm(msh, LolTypVer, IdxTab[i]), ThrMsh->tet.ver[i]->crd);
 
       for(i=0;i<4;i++)
-         SetTriNrm(&msh->tet.tri[i]);
+         SetTriNrm(&ThrMsh->tet.tri[i]);
 
       // Set tet edge tangents only on request
       if(flg & TngFlg)
          for(i=0;i<6;i++)
          {
-            SetEdgTng(&msh->tet.edg[i]);
-            CpyVec(msh->tet.edg[i].tng, msh->tet.tri[ TetEdgFac[i][0] ].edg[0].tng);
-            CpyVec(msh->tet.edg[i].tng, msh->tet.tri[ TetEdgFac[i][1] ].edg[1].tng);
+            SetEdgTng(&ThrMsh->tet.edg[i]);
+            CpyVec(ThrMsh->tet.edg[i].tng, ThrMsh->tet.tri[ TetEdgFac[i][0] ].edg[0].tng);
+            CpyVec(ThrMsh->tet.edg[i].tng, ThrMsh->tet.tri[ TetEdgFac[i][1] ].edg[1].tng);
          }
    }
 }
@@ -1192,10 +1224,10 @@ static void SetItm(MshSct *msh, itg typ, itg idx, itg flg)
 
 static void BakMshItm(MshSct *msh)
 {
-   memcpy(&msh->BakEdg, &msh->edg, sizeof(EdgSct));
-   memcpy(&msh->BakTri, &msh->tri, sizeof(TriSct));
-   memcpy(&msh->BakTet, &msh->tet, sizeof(TetSct));
-   memcpy(msh->BakVer, msh->ver, 4 * sizeof(VerSct));
+   memcpy(&msh->thr[0].BakEdg, &msh->thr[0].edg, sizeof(EdgSct));
+   memcpy(&msh->thr[0].BakTri, &msh->thr[0].tri, sizeof(TriSct));
+   memcpy(&msh->thr[0].BakTet, &msh->thr[0].tet, sizeof(TetSct));
+   memcpy( msh->thr[0].BakVer,  msh->thr[0].ver, 4 * sizeof(VerSct));
 }
 
 
@@ -1205,10 +1237,10 @@ static void BakMshItm(MshSct *msh)
 
 static void RstMshItm(MshSct *msh)
 {
-   memcpy(&msh->edg, &msh->BakEdg, sizeof(EdgSct));
-   memcpy(&msh->tri, &msh->BakTri, sizeof(TriSct));
-   memcpy(&msh->tet, &msh->BakTet, sizeof(TetSct));
-   memcpy(msh->ver, msh->BakVer, 4 * sizeof(VerSct));
+   memcpy(&msh->thr[0].edg, &msh->thr[0].BakEdg, sizeof(EdgSct));
+   memcpy(&msh->thr[0].tri, &msh->thr[0].BakTri, sizeof(TriSct));
+   memcpy(&msh->thr[0].tet, &msh->thr[0].BakTet, sizeof(TetSct));
+   memcpy( msh->thr[0].ver,  msh->thr[0].BakVer, 4 * sizeof(VerSct));
 }
 
 
@@ -1276,13 +1308,13 @@ static void AddVer(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct,
       {
          SetSonCrd(i, SonMin, SonMax, MinCrd, MaxCrd);
 
-         if(VerInsOct(msh->ver[0].crd, SonMin, SonMax))
+         if(VerInsOct(msh->thr[0].ver[0].crd, SonMin, SonMax))
             AddVer(msh, OctMsh, oct->son+i, SonMin, SonMax);
       }
    }
    else
    {
-      LnkItm(OctMsh, oct, LolTypVer, msh->ver[0].idx, 0);
+      LnkItm(OctMsh, oct, LolTypVer, msh->thr[0].ver[0].idx, 0);
 
       if((oct->lvl < OctMsh->GrdLvl)
       || ((oct->NmbVer >= oct->MaxItm) && (oct->lvl < MaxOctLvl)) )
@@ -1308,15 +1340,15 @@ static void AddEdg(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct,
       for(i=0;i<8;i++)
       {
          SetSonCrd(i, SonMin, SonMax, MinCrd, MaxCrd);
-         SetTmpHex(&OctMsh->hex, SonMin, SonMax);
+         SetTmpHex(&OctMsh->thr[0].hex, SonMin, SonMax);
 
-         if(EdgIntHex(&msh->edg, &OctMsh->hex, OctMsh->eps))
+         if(EdgIntHex(&msh->thr[0].edg, &OctMsh->thr[0].hex, OctMsh->eps))
             AddEdg(msh, OctMsh, oct->son+i, SonMin, SonMax);
       }
    }
    else
    {
-      LnkItm(OctMsh, oct, LolTypEdg, msh->edg.idx, 0);
+      LnkItm(OctMsh, oct, LolTypEdg, msh->thr[0].edg.idx, 0);
 
       if( (oct->lvl < OctMsh->GrdLvl)
       || ((oct->NmbEdg >= oct->MaxItm) && (oct->lvl < MaxOctLvl)) )
@@ -1342,15 +1374,15 @@ static void AddTri(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct,
       for(i=0;i<8;i++)
       {
          SetSonCrd(i, SonMin, SonMax, MinCrd, MaxCrd);
-         SetTmpHex(&OctMsh->hex, SonMin, SonMax);
+         SetTmpHex(&OctMsh->thr[0].hex, SonMin, SonMax);
 
-         if(TriIntHex(&msh->tri, &OctMsh->hex, OctMsh->eps))
+         if(TriIntHex(&msh->thr[0].tri, &OctMsh->thr[0].hex, OctMsh->eps))
             AddTri(msh, OctMsh, oct->son+i, SonMin, SonMax);
       }
    }
    else
    {
-      LnkItm(OctMsh, oct, LolTypTri, msh->tri.idx, msh->tri.ani);
+      LnkItm(OctMsh, oct, LolTypTri, msh->thr[0].tri.idx, msh->thr[0].tri.ani);
 
       if( (oct->lvl < OctMsh->GrdLvl)
       || ((oct->NmbFac >= oct->MaxItm) && (oct->lvl < MaxOctLvl)) )
@@ -1376,15 +1408,15 @@ static void AddTet(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct,
       for(i=0;i<8;i++)
       {
          SetSonCrd(i, SonMin, SonMax, MinCrd, MaxCrd);
-         SetTmpHex(&OctMsh->hex, SonMin, SonMax);
+         SetTmpHex(&OctMsh->thr[0].hex, SonMin, SonMax);
 
-         if(TetIntHex(&msh->tet, &OctMsh->hex, OctMsh->eps))
+         if(TetIntHex(&msh->thr[0].tet, &OctMsh->thr[0].hex, OctMsh->eps))
             AddTet(msh, OctMsh, oct->son+i, SonMin, SonMax);
       }
    }
    else
    {
-      LnkItm(OctMsh, oct, LolTypTet, msh->tet.idx, msh->tet.ani);
+      LnkItm(OctMsh, oct, LolTypTet, msh->thr[0].tet.idx, msh->thr[0].tet.ani);
 
       if( (oct->lvl < OctMsh->GrdLvl)
       || ((oct->NmbFac >= oct->MaxItm) && (oct->lvl < MaxOctLvl)) )
@@ -1446,55 +1478,55 @@ static void SubOct(  MshSct *msh, OctMshSct *OctMsh, OctSct *oct,
       if(lnk->typ == LolTypVer)
       {
          // Check inclusion of vertices among the 8 sons
-         SetItm(msh, LolTypVer, lnk->idx, 0);
+         SetItm(msh, LolTypVer, lnk->idx, 0, 0);
 
          for(i=0;i<8;i++)
          {
             SetSonCrd(i, SonMin, SonMax, MinCrd, MaxCrd);
 
-            if(VerInsOct(msh->ver[0].crd, SonMin, SonMax))
+            if(VerInsOct(msh->thr[0].ver[0].crd, SonMin, SonMax))
                LnkItm(OctMsh, oct->son+i, LolTypVer, lnk->idx, 0);
          }
       }
       else if(lnk->typ == LolTypEdg)
       {
          // Check the intersection between edge and the 8 sons
-         SetItm(msh, LolTypEdg, lnk->idx, 0);
+         SetItm(msh, LolTypEdg, lnk->idx, 0, 0);
 
          for(i=0;i<8;i++)
          {
             SetSonCrd(i, SonMin, SonMax, MinCrd, MaxCrd);
-            SetTmpHex(&OctMsh->hex, SonMin, SonMax);
+            SetTmpHex(&OctMsh->thr[0].hex, SonMin, SonMax);
 
-            if(EdgIntHex(&msh->edg, &OctMsh->hex, OctMsh->eps))
+            if(EdgIntHex(&msh->thr[0].edg, &OctMsh->thr[0].hex, OctMsh->eps))
                LnkItm(OctMsh, oct->son+i, LolTypEdg, lnk->idx, 0);
          }
       }
       else if(lnk->typ == LolTypTri)
       {
          // Check the intersection between the triangle and the 8 sons
-         SetItm(msh, LolTypTri, lnk->idx, TngFlg | AniFlg);
+         SetItm(msh, LolTypTri, lnk->idx, TngFlg | AniFlg, 0);
 
          for(i=0;i<8;i++)
          {
             SetSonCrd(i, SonMin, SonMax, MinCrd, MaxCrd);
-            SetTmpHex(&OctMsh->hex, SonMin, SonMax);
+            SetTmpHex(&OctMsh->thr[0].hex, SonMin, SonMax);
 
-            if(TriIntHex(&msh->tri, &OctMsh->hex, OctMsh->eps))
+            if(TriIntHex(&msh->thr[0].tri, &OctMsh->thr[0].hex, OctMsh->eps))
                LnkItm(OctMsh, oct->son+i, LolTypTri, lnk->idx, oct->ani);
          }
       }
       else if(lnk->typ == LolTypTet)
       {
          // Check the intersection between the tet and the 8 sons
-         SetItm(msh, LolTypTet, lnk->idx, TngFlg);
+         SetItm(msh, LolTypTet, lnk->idx, TngFlg, 0);
 
          for(i=0;i<8;i++)
          {
             SetSonCrd(i, SonMin, SonMax, MinCrd, MaxCrd);
-            SetTmpHex(&OctMsh->hex, SonMin, SonMax);
+            SetTmpHex(&OctMsh->thr[0].hex, SonMin, SonMax);
 
-            if(TetIntHex(&msh->tet, &OctMsh->hex, OctMsh->eps))
+            if(TetIntHex(&msh->thr[0].tet, &OctMsh->thr[0].hex, OctMsh->eps))
                LnkItm(OctMsh, oct->son+i, LolTypTet, lnk->idx, oct->ani);
          }
       }
@@ -2800,10 +2832,10 @@ int64_t call(lolfreeoctree)(int64_t *OctIdx)
    return(LolFreeOctree(*OctIdx));
 }   
 
-itg call(lolgetboundingbox)(int64_t *OctIdx, itg *typ,
-         itg *MaxItm,itg *ItmTab, fpn *MinCrd, fpn *MaxCrd)
+itg call(lolgetboundingbox)(  int64_t *OctIdx, itg *typ, itg *MaxItm,
+                              itg *ItmTab, fpn *MinCrd, fpn *MaxCrd, itg *ThrIdx )
 {
-   return(LolGetBoundingBox(*OctIdx, *typ, *MaxItm, ItmTab, MinCrd, MaxCrd));
+   return(LolGetBoundingBox(*OctIdx, *typ, *MaxItm, ItmTab, MinCrd, MaxCrd, *ThrIdx));
 }
 
 itg call(lolgetnearest)(int64_t *OctIdx, itg *typ, fpn *MinCrd, fpn *MinDis,

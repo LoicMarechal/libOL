@@ -9,7 +9,7 @@
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   oct 02 2020                                        */
+/*    Last modification:   oct 19 2020                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -52,12 +52,12 @@ int64_t LolNewOctree       (itg, fpn *, fpn *, itg, itg *, itg *,
                             itg, itg *, itg *, itg, itg *, itg *,
                             itg, itg *, itg *, itg, itg *, itg *, itg, itg);
 size_t  LolFreeOctree      (int64_t);
-itg     LolGetBoundingBox  (int64_t , itg , itg, itg *, fpn [3], fpn [3]);
+itg     LolGetBoundingBox  (int64_t , itg , itg, itg *, fpn [3], fpn [3], itg);
 itg     LolGetNearest      (int64_t, itg, fpn *, fpn *, fpn, itg (void *, itg),
                             void * , itg);
 itg     LolIntersectSurface(int64_t, fpn *, fpn *, fpn *,
-                            fpn, itg (void *, itg), void * );
-itg     LolProjectVertex   (int64_t, fpn *, itg, itg, fpn *);
+                            fpn, itg (void *, itg), void *, itg );
+itg     LolProjectVertex   (int64_t, fpn *, itg, itg, fpn *, itg);
 
 
 /*----------------------------------------------------------------------------*/

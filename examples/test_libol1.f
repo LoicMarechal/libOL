@@ -75,7 +75,8 @@ c     Build the octree
      +, 0, %val(0), %val(0)
      +, 0, %val(0), %val(0)
      +, 0, %val(0), %val(0)
-     +, 0, %val(0), %val(0))
+     +, 0, %val(0), %val(0)
+     +, 1, 1)
       print*, 'OctIdx = ', OctIdx
 
 c     Find the closest vertex and triangle from a given set of coordinates
@@ -83,10 +84,12 @@ c     Find the closest vertex and triangle from a given set of coordinates
       crd1(2) = 0
       crd1(3) = 0
 
-      idx = lolgetnearest(OctIdx,LolTypVer,crd1,dis,0D0,%val(0),%val(0))
+      idx = lolgetnearest(OctIdx,LolTypVer,crd1,dis
+     +,0D0,%val(0),%val(0),0)
       print*, 'vertex closest from ', crd1, 'is ', idx
 
-      idx = lolgetnearest(OctIdx,LolTypTri,crd1,dis,0D0,%val(0),%val(0))
+      idx = lolgetnearest(OctIdx,LolTypTri,crd1,dis
+     +,0D0,%val(0),%val(0),0)
       print*, 'triangle closest from ', crd1, 'is ', idx
 
 c     Find the triangles included in a bounding box
@@ -98,7 +101,7 @@ c     Find the triangles included in a bounding box
       box(3,2) =  0.012927 + 0.0001
 
       NmbItm = lolgetboundingbox(OctIdx, LolTypTri, 10000, buf,
-     +box(1,1), box(1,2))
+     +box(1,1), box(1,2),0)
       print*, NmbItm, ' triangles in box ', box(1:3,1), box(1:3,2)
 
       do i=1,NmbItm

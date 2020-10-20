@@ -9,7 +9,7 @@
 /* Description:         Parallel localization on a surface mesh               */
 /* Author:              Loic MARECHAL                                         */
 /* Creation date:       oct 02 2020                                           */
-/* Last modification:   oct 06 2020                                           */
+/* Last modification:   oct 19 2020                                           */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 

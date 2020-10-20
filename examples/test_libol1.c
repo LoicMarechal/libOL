@@ -9,7 +9,7 @@
 /* Description:         Basic localization test on a surface mesh             */
 /* Author:              Loic MARECHAL                                         */
 /* Creation date:       mar 16 2012                                           */
-/* Last modification:   oct 02 2020                                           */
+/* Last modification:   oct 20 2020                                           */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -139,7 +139,7 @@ int main()
    }
 
    puts("\nSearch for vertices in a bounding box :");
-   NmbItm = LolGetBoundingBox(OctIdx, LolTypVer, BufSiz, buf, MinCrd, MaxCrd);
+   NmbItm = LolGetBoundingBox(OctIdx, LolTypVer, BufSiz, buf, MinCrd, MaxCrd, 0);
 
    for(i=0;i<NmbItm;i++)
       printf(" vertex : %d\n", buf[i]);
@@ -150,7 +150,7 @@ int main()
       idx = LolGetNearest(OctIdx, LolTypEdg, crd1, &dis, 0., NULL, NULL, 0);
       printf(" closest edge = %d (%d - %d), distance = %g\n",
                idx, EdgTab[ idx ][0], EdgTab[ idx ][1], dis);
-      LolProjectVertex(OctIdx, crd1, LolTypEdg, idx, MinCrd);
+      LolProjectVertex(OctIdx, crd1, LolTypEdg, idx, MinCrd, 0);
       printf(" projection on the closest edge: %g %g %g\n",
                MinCrd[0], MinCrd[1], MinCrd[2] );
       printf(" distance from image = %g\n",\
@@ -163,7 +163,7 @@ int main()
    {
       puts("\nSearch for triangles in a bounding box :");
 
-      NmbItm = LolGetBoundingBox(OctIdx, LolTypTri, BufSiz, buf, MinCrd, MaxCrd);
+      NmbItm = LolGetBoundingBox(OctIdx, LolTypTri, BufSiz, buf, MinCrd, MaxCrd, 0);
 
       for(i=0;i<NmbItm;i++)
          printf(" triangle : %d\n", buf[i]);
@@ -171,7 +171,7 @@ int main()
       puts("\nSearch for the closest triangle from a given point :");
       idx = LolGetNearest(OctIdx, LolTypTri, crd1, &dis, 0., NULL, NULL, 0);
       printf(" closest triangle = %d, distance = %g\n", idx, dis);
-      LolProjectVertex(OctIdx, crd1, LolTypTri, idx, MinCrd);
+      LolProjectVertex(OctIdx, crd1, LolTypTri, idx, MinCrd, 0);
       printf(" projection on the closest triangle: %g %g %g\n",
                MinCrd[0], MinCrd[1], MinCrd[2] );
       printf(" distance from image = %g\n",\
@@ -239,7 +239,7 @@ int main()
       MaxCrd[2] = -.5;
 
       puts("\nSearch for vertices in a bounding box :");
-      NmbItm = LolGetBoundingBox(OctIdx, LolTypTet, BufSiz, buf, MinCrd, MaxCrd);
+      NmbItm = LolGetBoundingBox(OctIdx, LolTypTet, BufSiz, buf, MinCrd, MaxCrd, 0);
       printf("NmbTet = %d\n", NmbItm);
 
       if(!(MshIdx = GmfOpenMesh("../sample_meshes/cut.meshb", GmfWrite, 2, 3)))
