@@ -9,7 +9,7 @@
 /* Description:         Basic localization test on a surface mesh             */
 /* Author:              Loic MARECHAL                                         */
 /* Creation date:       mar 16 2012                                           */
-/* Last modification:   oct 20 2020                                           */
+/* Last modification:   oct 22 2020                                           */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -36,6 +36,8 @@
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #define POW(a) ((a)*(a))
+#define CUB(a) ((a)*(a)*(a))
+#define INC 100
 
 
 /*----------------------------------------------------------------------------*/
@@ -45,7 +47,7 @@
 int main()
 {
    int i, j, k, cpt=0, NmbVer, NmbEdg, NmbTri, NmbTet, NmbItm, ver, dim;
-   int (*EdgTab)[2], (*TriTab)[3], (*TetTab)[4], buf[ BufSiz ], inc=100;
+   int (*EdgTab)[2], (*TriTab)[3], (*TetTab)[4], buf[ BufSiz ];
    int ref, idx;
    int64_t MshIdx, OctIdx;
    double crd1[3] = {1.16235, 0.147997, -4.38923 };
@@ -187,28 +189,28 @@ int main()
             MaxCrd[j] = VerTab[i][j];
 
       for(i=0;i<3;i++)
-         IncCrd[i] = (MaxCrd[i] - MinCrd[i]) / inc;
+         IncCrd[i] = (MaxCrd[i] - MinCrd[i]) / INC;
 
       crd1[0] = MinCrd[0];
 
       t = clock();
 
-      for(i=0;i<inc;i++)
+      for(i=0;i<INC;i++)
       {
          crd1[1] = MinCrd[1];
 
-         for(j=0;j<inc;j++)
+         for(j=0;j<INC;j++)
          {
             crd1[2] = MinCrd[2];
 
-            for(k=0;k<inc;k++)
+            for(k=0;k<INC;k++)
             {
                t2 = clock();
-               idx = LolGetNearest(OctIdx, LolTypTri, crd1, &dis, .005, NULL, NULL, 0);
+               idx = LolGetNearest(OctIdx, LolTypTri, crd1, &dis, 0, NULL, NULL, 0);
                t2 = clock() - t2;
                MinTim = MIN(MinTim, t2);
                MaxTim = MAX(MaxTim, t2);
-               AvgDis += dis;
+               AvgDis += sqrt(dis);
                crd1[2] += IncCrd[2];
             }
 
@@ -219,7 +221,7 @@ int main()
       }
 
       printf("nb samples = %d, mean dist = %g, total time = %g s, min time = %g s, max time = %g s\n",
-            inc*inc*inc, AvgDis / (inc*inc*inc), (double)(clock() - t) / CLOCKS_PER_SEC,
+            CUB(INC), AvgDis / CUB(INC), (double)(clock() - t) / CLOCKS_PER_SEC,
             (double)MinTim / CLOCKS_PER_SEC, (double)MaxTim / CLOCKS_PER_SEC);
    }
 

@@ -9,7 +9,7 @@
 /* Description:         Parallel localization on a surface mesh               */
 /* Author:              Loic MARECHAL                                         */
 /* Creation date:       oct 02 2020                                           */
-/* Last modification:   oct 19 2020                                           */
+/* Last modification:   oct 22 2020                                           */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -33,9 +33,9 @@
 /* Local defines                                                              */
 /*----------------------------------------------------------------------------*/
 
-#define INX 128
-#define INY 128
-#define INZ 128
+#define INX 100
+#define INY 100
+#define INZ 100
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #define POW(a) ((a)*(a))
@@ -152,6 +152,9 @@ int main()
    IncCrd[1] = (MaxCrd[1] - MinCrd[1]) / INY;
    IncCrd[2] = (MaxCrd[2] - MinCrd[2]) / INZ;
 
+   for(i=0;i<NmbThr;i++)
+      AvgDis[i] = 0.;
+
    // Call parallel GetNearest
    t = GetWallClock();
    LaunchParallel(ParIdx, GrdTyp, 0, ParallelGridSearch, NULL);
@@ -196,11 +199,11 @@ void ParallelGridSearch(int BegIdx, int EndIdx, int PthIdx, void *nil)
          for(k=0;k<INZ;k++)
          {
             TstCrd[2] = MinCrd[2] + k * IncCrd[2];
-            LolGetNearest(OctIdx, LolTypTri, TstCrd, &dis, .005, NULL, NULL, PthIdx);
-            avg += dis;
+            LolGetNearest(OctIdx, LolTypTri, TstCrd, &dis, 0, NULL, NULL, PthIdx);
+            avg += sqrt(dis);
          }
       }
    }
 
-   AvgDis[ PthIdx ] = avg;
+   AvgDis[ PthIdx ] += avg;
 }
