@@ -174,7 +174,7 @@ typedef struct
    VerSct   ver[8];
    HexSct   hex;
    itg      tag, *ThrTag;
-   BucSct   **ThrStk;
+   BucSct **ThrStk;
 }OctThrSct;
 
 typedef struct
@@ -184,10 +184,10 @@ typedef struct
    size_t   MemUse;
    fpn      eps, MaxSiz, MinSiz, BucSiz, bnd[2][3];
    OctSct   oct, *CurOctBlk;
-   BucSct   *grd;
-   LnkSct   *NexFreLnk;
-   MemSct   *NexMem;
-   MshSct   *msh;
+   BucSct  *grd;
+   LnkSct  *NexFreLnk;
+   MemSct  *NexMem;
+   MshSct  *msh;
 }TreSct;
 
 
