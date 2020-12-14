@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.63                         */
+/*                      LIB OCTREE LOCALISATION V1.64                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /* Description:         Basic localization test on a surface mesh             */
 /* Author:              Loic MARECHAL                                         */
 /* Creation date:       mar 16 2012                                           */
-/* Last modification:   oct 22 2020                                           */
+/* Last modification:   dec 14 2020                                           */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -46,11 +46,11 @@
 
 int main()
 {
-   int i, j, k, cpt=0, NmbVer, NmbEdg, NmbTri, NmbTet, NmbItm, ver, dim;
-   int (*EdgTab)[2], (*TriTab)[3], (*TetTab)[4], buf[ BufSiz ];
+   int i, j, k, cpt=0, NmbVer, NmbEdg, NmbTri, NmbQad, NmbTet, NmbItm, ver, dim;
+   int (*EdgTab)[2], (*TriTab)[3], (*QadTab)[4], (*TetTab)[4], buf[ BufSiz ];
    int ref, idx;
    int64_t MshIdx, OctIdx;
-   double crd1[3] = {1.16235, 0.147997, -4.38923 };
+   double crd1[3] = {0,0,-10 };
    double crd2[3] = {0.002928, 0.079575, 0.006978};
    double crd3[3] = {-.0054, .1488, -.0067};
    double dis, (*VerTab)[3], MinCrd[3], MaxCrd[3], IncCrd[3], AvgDis=0;
@@ -65,6 +65,7 @@ int main()
    puts("\nRead mesh");
 
    if(!(MshIdx = GmfOpenMesh("../sample_meshes/test.meshb", GmfRead, &ver, &dim)))
+   //if(!(MshIdx = GmfOpenMesh("../sample_meshes/hexes.meshb", GmfRead, &ver, &dim)))
    {
      puts("Cannot open test.meshb.");
      return(1);
@@ -73,9 +74,10 @@ int main()
    NmbVer = GmfStatKwd(MshIdx, GmfVertices);
    NmbEdg = GmfStatKwd(MshIdx, GmfEdges);
    NmbTri = GmfStatKwd(MshIdx, GmfTriangles);
+   NmbQad = GmfStatKwd(MshIdx, GmfQuadrilaterals);
    NmbTet = GmfStatKwd(MshIdx, GmfTetrahedra);
-   printf("vertices = %d, edges = %d, triangles = %d, tets = %d, dimension = %d, version = %d\n",
-            NmbVer, NmbEdg, NmbTri, NmbTet, dim, ver);
+   printf("vertices = %d, edges = %d, triangles = %d, quads = %d, tets = %d, dimension = %d, version = %d\n",
+            NmbVer, NmbEdg, NmbTri, NmbQad, NmbTet, dim, ver);
 
    if( !NmbVer || (dim != 3) )
    {
@@ -104,6 +106,14 @@ int main()
                   GmfInt, &ref, &ref );
    }
 
+   if(NmbQad)
+   {
+      QadTab = malloc((NmbQad+1) * 4 * sizeof(int));
+      GmfGetBlock(MshIdx, GmfQuadrilaterals, 1, NmbQad, 0, NULL, NULL,
+                  GmfIntVec, 4, QadTab[1], QadTab[ NmbQad ],
+                  GmfInt, &ref, &ref );
+   }
+
    if(NmbTet)
    {
       TetTab = malloc((NmbTet+1) * 4 * sizeof(int));
@@ -125,7 +135,7 @@ int main()
    OctIdx = LolNewOctree(  NmbVer, VerTab[1], VerTab[2],
                            NmbEdg, EdgTab[1], EdgTab[2],
                            NmbTri, TriTab[1], TriTab[2],
-                           0, NULL, NULL,
+                           NmbQad, QadTab[1], QadTab[2],
                            NmbTet, TetTab[1], TetTab[2],
                            0, NULL, NULL,
                            0, NULL, NULL,
@@ -223,6 +233,27 @@ int main()
       printf("nb samples = %d, mean dist = %g, total time = %g s, min time = %g s, max time = %g s\n",
             CUB(INC), AvgDis / CUB(INC), (double)(clock() - t) / CLOCKS_PER_SEC,
             (double)MinTim / CLOCKS_PER_SEC, (double)MaxTim / CLOCKS_PER_SEC);
+   }
+
+   if(NmbQad)
+   {
+      puts("\nSearch for quads in a bounding box :");
+
+      NmbItm = LolGetBoundingBox(OctIdx, LolTypQad, BufSiz, buf, MinCrd, MaxCrd, 0);
+
+      for(i=0;i<NmbItm;i++)
+         printf(" quad : %d\n", buf[i]);
+
+      puts("\nSearch for the closest quad from a given point :");
+      idx = LolGetNearest(OctIdx, LolTypQad, crd1, &dis, 0., NULL, NULL, 0);
+      printf(" closest quad = %d, distance = %g\n", idx, dis);
+      LolProjectVertex(OctIdx, crd1, LolTypQad, idx, MinCrd, 0);
+      printf(" projection on the closest quad: %g %g %g\n",
+               MinCrd[0], MinCrd[1], MinCrd[2] );
+      printf(" distance from image = %g\n",\
+               sqrt(POW(MinCrd[0] - crd1[0])
+                  + POW(MinCrd[1] - crd1[1])
+                  + POW(MinCrd[2] - crd1[2]) ));
    }
 
    if(NmbTet)

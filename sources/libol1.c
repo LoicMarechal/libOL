@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.63                         */
+/*                      LIB OCTREE LOCALISATION V1.64                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   oct 22 2020                                        */
+/*    Last modification:   dec 14 2020                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -199,6 +199,7 @@ static void    SetMshBox   (TreSct *, MshSct *);
 static void    AddVer      (MshSct *, TreSct *, OctSct *, fpn *, fpn *);
 static void    AddEdg      (MshSct *, TreSct *, OctSct *, fpn *, fpn *);
 static void    AddTri      (MshSct *, TreSct *, OctSct *, fpn *, fpn *);
+static void    AddQad      (MshSct *, TreSct *, OctSct *, fpn *, fpn *);
 static void    AddTet      (MshSct *, TreSct *, OctSct *, fpn *, fpn *);
 static void    SubOct      (MshSct *, TreSct *, OctSct *, fpn *, fpn *);
 static void    LnkItm      (TreSct *, OctSct *, itg, itg, char);
@@ -229,6 +230,7 @@ static void    RstMshItm   (MshSct *);
 
 static itg     EdgIntEdg   (EdgSct *, EdgSct *, VerSct *, fpn);
 static fpn     DisVerTri   (MshSct *, fpn *, TriSct *);
+static fpn     DisVerQad   (MshSct *, fpn *, QadSct *);
 static fpn     DisVerTet   (MshSct *, fpn *, TetSct *);
 static fpn     GetTriSrf   (TriSct *);
 static fpn     GetVolTet   (TetSct *);
@@ -240,6 +242,7 @@ static itg     VerInsTet   (VerSct *, TetSct *, fpn);
 static itg     VerInsHex   (VerSct *, HexSct *);
 static itg     EdgIntHex   (EdgSct *, HexSct *, fpn);
 static itg     TriIntHex   (TriSct *, HexSct *, fpn);
+static itg     QadIntHex   (QadSct *, HexSct *, fpn);
 static itg     TetIntHex   (TetSct *, HexSct *, fpn);
 static itg     EdgIntQad   (HexSct *, itg, EdgSct *, VerSct *, fpn);
 static itg     EdgIntTri   (TriSct *, EdgSct *, VerSct *, fpn);
@@ -314,7 +317,7 @@ int64_t LolNewOctree(itg NmbVer, fpn *PtrCrd1, fpn *PtrCrd2,
    OctThrSct  *OctThr;
    MshThrSct  *MshThr;
 
-   // Make sure we have a vertex table and a valide base index (0 ou 1)
+   // Make sure we have a vertex table and a valid base index (0 or 1)
    if(!NmbVer || !PtrCrd1 || !PtrCrd2 || (BasIdx < 0) || (BasIdx > 1) )
       return(0);
 
@@ -345,6 +348,12 @@ int64_t LolNewOctree(itg NmbVer, fpn *PtrCrd1, fpn *PtrCrd2,
    TotItmCnt               += NmbTri;
    msh->UsrPtr[ LolTypTri ] = (char *)PtrTri1;
    msh->UsrSiz[ LolTypTri ] = (char *)PtrTri2 - (char *)PtrTri1;
+
+   msh->NmbItm[ LolTypQad ] = NmbQad;
+   MaxItmCnt                = MAX(MaxItmCnt, NmbQad);
+   TotItmCnt               += NmbQad;
+   msh->UsrPtr[ LolTypQad ] = (char *)PtrQad1;
+   msh->UsrSiz[ LolTypQad ] = (char *)PtrQad2 - (char *)PtrQad1;
 
    msh->NmbItm[ LolTypTet ] = NmbTet;
    MaxItmCnt                = MAX(MaxItmCnt, NmbTet);
@@ -395,6 +404,30 @@ int64_t LolNewOctree(itg NmbVer, fpn *PtrCrd1, fpn *PtrCrd2,
          MshThr->tri.edg[i].ver[0] = &MshThr->ver[ (i+1)%3 ];
          MshThr->tri.edg[i].ver[1] = &MshThr->ver[ (i+2)%3 ];
       }
+
+      // Setup the temporary quad for local geometric calculations
+      for(i=0;i<4;i++)
+      {
+         MshThr->qad.ver[i] = &MshThr->ver[i];
+         MshThr->qad.edg[i].ver[0] = &MshThr->ver[ i ];
+         MshThr->qad.edg[i].ver[1] = &MshThr->ver[ (i+1)%4 ];
+      }
+
+      // The quad is made of two triangles
+      MshThr->qad.tri[0].ver[0] = &MshThr->ver[0];
+      MshThr->qad.tri[0].ver[1] = &MshThr->ver[1];
+      MshThr->qad.tri[0].ver[2] = &MshThr->ver[2];
+
+      MshThr->qad.tri[1].ver[0] = &MshThr->ver[3];
+      MshThr->qad.tri[1].ver[1] = &MshThr->ver[2];
+      MshThr->qad.tri[1].ver[2] = &MshThr->ver[1];
+
+      for(i=0;i<2;i++)
+         for(j=0;j<3;j++)
+         {
+            MshThr->qad.tri[i].edg[j].ver[0] = MshThr->qad.tri[i].ver[ (j+1)%3 ];
+            MshThr->qad.tri[i].edg[j].ver[1] = MshThr->qad.tri[i].ver[ (j+2)%3 ];
+         }
 
       // Setup the temporary tetrahedron for local geometric calculations
       for(i=0;i<4;i++)
@@ -471,28 +504,35 @@ int64_t LolNewOctree(itg NmbVer, fpn *PtrCrd1, fpn *PtrCrd2,
       OctThr->hex.qad[5].nrm[2] = -1;
    }
 
-   // Insert each vertices in the octree
+   // Insert each vertex in the octree
    for(i=0;i<msh->NmbItm[ LolTypVer ];i++)
    {
       SetItm(msh, LolTypVer, i + BasIdx, 0, 0);
       AddVer(msh, tre, &tre->oct, tre->bnd[0], tre->bnd[1]);
    }
 
-   // Insert each edges in the octree
+   // Insert each edge in the octree
    for(i=0;i<msh->NmbItm[ LolTypEdg ];i++)
    {
       SetItm(msh, LolTypEdg, i + BasIdx, 0, 0);
       AddEdg(msh, tre, &tre->oct, tre->bnd[0], tre->bnd[1]);
    }
 
-   // Insert each triangles in the octree
+   // Insert each triangle in the octree
    for(i=0;i<msh->NmbItm[ LolTypTri ];i++)
    {
       SetItm(msh, LolTypTri, i + BasIdx, TngFlg | AniFlg, 0);
       AddTri(msh, tre, &tre->oct, tre->bnd[0], tre->bnd[1]);
    }
 
-   // Insert each tetrahedra in the octree
+   // Insert each quad in the octree
+   for(i=0;i<msh->NmbItm[ LolTypQad ];i++)
+   {
+      SetItm(msh, LolTypQad, i + BasIdx, TngFlg | AniFlg, 0);
+      AddQad(msh, tre, &tre->oct, tre->bnd[0], tre->bnd[1]);
+   }
+
+   // Insert each tetrahedron in the octree
    for(i=0;i<msh->NmbItm[ LolTypTet ];i++)
    {
       SetItm(msh, LolTypTet, i + BasIdx, TngFlg, 0);
@@ -552,7 +592,7 @@ size_t LolFreeOctree(int64_t OctIdx)
 
 
 /*----------------------------------------------------------------------------*/
-/* Search the octree for triangles included in this box                       */
+/* Search the octree for mesh entities included in this box                   */
 /*----------------------------------------------------------------------------*/
 
 itg LolGetBoundingBox(  int64_t OctIdx, itg typ, itg MaxItm, itg *ItmTab,
@@ -671,6 +711,13 @@ static void GetBox(  TreSct *tre, OctSct *oct, itg typ, itg *NmbItm,
             SetItm(tre->msh, LolTypTri, lnk->idx, TngFlg, ThrIdx);
 
             if(!TriIntHex(&ThrMsh->tri, &ThrOct->hex, tre->eps))
+               continue;
+         }
+         else if(lnk->typ == LolTypQad)
+         {
+            SetItm(tre->msh, LolTypQad, lnk->idx, TngFlg, ThrIdx);
+
+            if(!QadIntHex(&ThrMsh->qad, &ThrOct->hex, tre->eps))
                continue;
          }
          else if(lnk->typ == LolTypTet)
@@ -836,7 +883,7 @@ itg LolIntersectSurface(int64_t OctIdx, fpn *VerCrd, fpn *VerTng, fpn *MinDis,
 
 
 /*----------------------------------------------------------------------------*/
-/* Project a vertex on a given enitity: vertex, edge or triangle              */
+/* Project a vertex on a given enitity: vertex, edge, triangle or quad        */
 /*----------------------------------------------------------------------------*/
 
 itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
@@ -847,6 +894,7 @@ itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
    MshThrSct  *ThrMsh = &tre->msh->thr[ ThrIdx ];
    MshSct     *msh = tre->msh;
    VerSct      TmpVer;
+   TriSct     *tri;
    itg         i, EdgFlg = 0;
    fpn         CurDis, MinDis = DBL_MAX;
 
@@ -886,7 +934,7 @@ itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
       if(VerInsTri(&ThrMsh->tri, &TmpVer, tre->eps))
       {
          CpyVec(TmpVer.crd, MinCrd);
-         return(3);
+         return(3); // the closest projection is inside the triangle
       }
 
       // Or fall inside one of its three edges
@@ -913,14 +961,64 @@ itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
          {
             MinDis = CurDis;
             CpyVec(ThrMsh->tri.ver[i]->crd, MinCrd);
-            EdgFlg = 0; // la meilleure projection n'est plus sur un edge
+            EdgFlg = 0;
          }
       }
 
       if(EdgFlg)
-         return(2);
+         return(2); // the closest projection is on an edge
       else
-         return(1); // le meilleure proj est sur un vertex
+         return(1); // the closest projection is on a vertex
+   }
+   else if(typ == LolTypQad)
+   {
+      SetItm(msh, LolTypQad, MinItm, TngFlg, ThrIdx);
+
+      // Compute the projection on the two triangles
+      for(i=0;i<2;i++)
+      {
+         tri = &ThrMsh->qad.tri[i];
+         PrjVerPla(VerCrd, tri->ver[0]->crd, tri->nrm, TmpVer.crd);
+
+         if(VerInsTri(tri, &TmpVer, tre->eps))
+         {
+            CpyVec(TmpVer.crd, MinCrd);
+            return(3); // the closest projection is inside the quad
+         }
+      }
+
+      // Check the projections on the four edges
+      for(i=0;i<4;i++)
+      {
+         PrjVerLin(  VerCrd, ThrMsh->qad.edg[i].ver[0]->crd,
+                     ThrMsh->qad.edg[i].tng, TmpVer.crd );
+
+         if(VerInsEdg(&ThrMsh->qad.edg[i], &TmpVer, tre->eps)
+         && (dis(VerCrd, TmpVer.crd) < MinDis) )
+         {
+            MinDis = dis(VerCrd, TmpVer.crd);
+            CpyVec(TmpVer.crd, MinCrd);
+            EdgFlg = 2;
+         }
+      }
+
+      // Or one of the four vertices
+      for(i=0;i<4;i++)
+      {
+         CurDis = dis(VerCrd, ThrMsh->qad.ver[i]->crd);
+
+         if(CurDis < MinDis)
+         {
+            MinDis = CurDis;
+            CpyVec(ThrMsh->qad.ver[i]->crd, MinCrd);
+            EdgFlg = 0;
+         }
+      }
+
+      if(EdgFlg)
+         return(2); // the closest projection is on an edge
+      else
+         return(1); // the closest projection is on a vertex
    }
    else
       return(0);
@@ -1057,6 +1155,19 @@ static void GetOctLnk(  MshSct *msh, itg typ, fpn VerCrd[3], itg *MinItm,
             SetItm(msh, LolTypTri, lnk->idx, 0, ThrIdx);
             CurDis = DisVerTri(msh, VerCrd, &ThrMsh->tri);
          }
+         else if(lnk->typ == LolTypQad)
+         {
+            if(ThrMsh->TagTab[ lnk->idx ] == ThrMsh->tag)
+               continue;
+
+            ThrMsh->TagTab[ lnk->idx ] = ThrMsh->tag;
+
+            if(UsrPrc && !UsrPrc(UsrDat, lnk->idx))
+               continue;
+
+            SetItm(msh, LolTypQad, lnk->idx, 0, ThrIdx);
+            CurDis = DisVerQad(msh, VerCrd, &ThrMsh->qad);
+         }
          else if(lnk->typ == LolTypTet)
          {
             SetItm(msh, LolTypTet, lnk->idx, 0, ThrIdx);
@@ -1149,7 +1260,7 @@ static void IntRayOct(  TreSct *tre, MshSct *msh, fpn *crd, fpn *tng,
 
 static void SetItm(MshSct *msh, itg typ, itg idx, itg flg, itg ThrIdx)
 {
-   itg         i, *IdxTab;
+   itg         i, j, *IdxTab;
    const itg   TetEdgFac[6][2] = { {2,3}, {1,3}, {1,2}, {0,3}, {0,2}, {0,1} };
    MshThrSct  *ThrMsh = &msh->thr[ ThrIdx ];
 
@@ -1189,6 +1300,34 @@ static void SetItm(MshSct *msh, itg typ, itg idx, itg flg, itg ThrIdx)
       if(flg & AniFlg)
          ThrMsh->tri.ani = GetTriAni(&ThrMsh->tri);
    }
+   else if(typ == LolTypQad)
+   {
+      // Setup the temporary triangle structure with this triangle's ID
+      ThrMsh->qad.idx = idx;
+      IdxTab = (itg *)GetPtrItm(msh, typ, idx);
+
+      for(i=0;i<4;i++)
+         CpyVec((fpn *)GetPtrItm(msh, LolTypVer, IdxTab[i]), ThrMsh->qad.ver[i]->crd);
+
+      // Set quad edge tangents only on request
+      if(flg & TngFlg)
+         for(i=0;i<4;i++)
+            SetEdgTng(&ThrMsh->qad.edg[i]);
+
+      for(i=0;i<2;i++)
+      {
+         SetTriNrm(&ThrMsh->qad.tri[i]);
+
+         // Set triangle edge tangents only on request
+         if(flg & TngFlg)
+            for(j=0;j<3;j++)
+               SetEdgTng(&ThrMsh->qad.tri[i].edg[j]);
+
+         // Compute the aspect ratio on demand
+         if(flg & AniFlg)
+            ThrMsh->tri.ani = GetTriAni(&ThrMsh->qad.tri[i]);
+      }
+   }
    else if(typ == LolTypTet)
    {
       // Setup the temporary tetrahedron structure with this tet ID
@@ -1221,6 +1360,7 @@ static void BakMshItm(MshSct *msh)
 {
    memcpy(&msh->thr[0].BakEdg, &msh->thr[0].edg, sizeof(EdgSct));
    memcpy(&msh->thr[0].BakTri, &msh->thr[0].tri, sizeof(TriSct));
+   memcpy(&msh->thr[0].BakQad, &msh->thr[0].qad, sizeof(QadSct));
    memcpy(&msh->thr[0].BakTet, &msh->thr[0].tet, sizeof(TetSct));
    memcpy( msh->thr[0].BakVer,  msh->thr[0].ver, 4 * sizeof(VerSct));
 }
@@ -1234,6 +1374,7 @@ static void RstMshItm(MshSct *msh)
 {
    memcpy(&msh->thr[0].edg, &msh->thr[0].BakEdg, sizeof(EdgSct));
    memcpy(&msh->thr[0].tri, &msh->thr[0].BakTri, sizeof(TriSct));
+   memcpy(&msh->thr[0].qad, &msh->thr[0].BakQad, sizeof(QadSct));
    memcpy(&msh->thr[0].tet, &msh->thr[0].BakTet, sizeof(TetSct));
    memcpy( msh->thr[0].ver,  msh->thr[0].BakVer, 4 * sizeof(VerSct));
 }
@@ -1389,6 +1530,40 @@ static void AddTri(  MshSct *msh, TreSct *tre, OctSct *oct,
 
 
 /*----------------------------------------------------------------------------*/
+/* Add a quad to leaf octants                                                 */
+/*----------------------------------------------------------------------------*/
+
+static void AddQad(  MshSct *msh, TreSct *tre, OctSct *oct,
+                     fpn MinCrd[3], fpn MaxCrd[3] )
+{
+   itg i;
+   fpn SonMin[3], SonMax[3];
+
+   if(oct->sub)
+   {
+      for(i=0;i<8;i++)
+      {
+         SetSonCrd(i, SonMin, SonMax, MinCrd, MaxCrd);
+         SetTmpHex(&tre->thr[0].hex, SonMin, SonMax);
+
+         if(QadIntHex(&msh->thr[0].qad, &tre->thr[0].hex, tre->eps))
+            AddQad(msh, tre, oct->son+i, SonMin, SonMax);
+      }
+   }
+   else
+   {
+      LnkItm(tre, oct, LolTypQad, msh->thr[0].qad.idx, 0);
+
+      if( (oct->lvl < tre->GrdLvl)
+      || ((oct->NmbFac >= oct->MaxItm) && (oct->lvl < MaxOctLvl)) )
+      {
+         SubOct(msh, tre, oct, MinCrd, MaxCrd);
+      }
+   }
+}
+
+
+/*----------------------------------------------------------------------------*/
 /* Add a tetrahedron to leaf octants                                          */
 /*----------------------------------------------------------------------------*/
 
@@ -1509,6 +1684,20 @@ static void SubOct(  MshSct *msh, TreSct *tre, OctSct *oct,
 
             if(TriIntHex(&msh->thr[0].tri, &tre->thr[0].hex, tre->eps))
                LnkItm(tre, oct->son+i, LolTypTri, lnk->idx, oct->ani);
+         }
+      }
+      else if(lnk->typ == LolTypQad)
+      {
+         // Check the intersection between the quad and the 8 sons
+         SetItm(msh, LolTypQad, lnk->idx, TngFlg | AniFlg, 0);
+
+         for(i=0;i<8;i++)
+         {
+            SetSonCrd(i, SonMin, SonMax, MinCrd, MaxCrd);
+            SetTmpHex(&tre->thr[0].hex, SonMin, SonMax);
+
+            if(QadIntHex(&msh->thr[0].qad, &tre->thr[0].hex, tre->eps))
+               LnkItm(tre, oct->son+i, LolTypQad, lnk->idx, oct->ani);
          }
       }
       else if(lnk->typ == LolTypTet)
@@ -1888,6 +2077,19 @@ static itg TriIntHex(TriSct *tri, HexSct *hex, fpn eps)
          return(1);
 
    return(0);
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* Test if an octant is intersected by a quad                                 */
+/*----------------------------------------------------------------------------*/
+
+static itg QadIntHex(QadSct *qad, HexSct *hex, fpn eps)
+{
+   if(TriIntHex(&qad->tri[0], hex, eps) || TriIntHex(&qad->tri[1], hex, eps))
+      return(1);
+   else
+      return(0);
 }
 
 
@@ -2337,6 +2539,17 @@ static fpn DisVerTri(MshSct *msh, fpn VerCrd[3], TriSct *tri)
 
    // Return the square of the distance
    return(DisPow(VerCrd, ImgCrd));
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* Compute the distance between a vertex and a quad                           */
+/*----------------------------------------------------------------------------*/
+
+static fpn DisVerQad(MshSct *msh, fpn VerCrd[3], QadSct *qad)
+{
+   return( MIN(DisVerTri(msh, VerCrd, &qad->tri[0]),
+               DisVerTri(msh, VerCrd, &qad->tri[1])) );
 }
 
 
