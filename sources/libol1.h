@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.63                         */
+/*                      LIB OCTREE LOCALISATION V1.70                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   oct 19 2020                                        */
+/*    Last modification:   feb 03 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -18,8 +18,8 @@
 /* Public defines : type of elements and 32/64 bits int and floating points   */
 /*----------------------------------------------------------------------------*/
 
-enum TypTag {  LolTypVer, LolTypEdg, LolTypTri, LolTypQad,
-               LolTypTet, LolTypPyr, LolTypPri, LolTypHex, LolNmbTyp };
+enum TypTag {  LolTypVer=1, LolTypEdg, LolTypTri, LolTypQad,
+               LolTypTet,   LolTypPyr, LolTypPri, LolTypHex, LolNmbTyp };
 
 
 /*----------------------------------------------------------------------------*/

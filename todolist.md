@@ -1,4 +1,6 @@
 ### STANDARD PRIORITY
+- reserve keywords and data structures for hybrid and 2nd order elements
+- optionally include the LPlib and build the octree in parallel
 - add a procedure to detect volume subdomains
 
 ### DONE

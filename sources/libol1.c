@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.64                         */
+/*                      LIB OCTREE LOCALISATION V1.70                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   dec 14 2020                                        */
+/*    Last modification:   feb 03 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -289,6 +289,19 @@ static void    FreAllMem   (TreSct *);
 
 
 /*----------------------------------------------------------------------------*/
+/* Local mesh connectivity tables                                             */
+/*----------------------------------------------------------------------------*/
+
+static const itg TetEdg[6][2]    = { {0,1}, {0,2}, {0,3}, {1,2}, {1,3}, {2,3} };
+static const itg TetFac[4][3]    = { {1,2,3}, {2,0,3}, {3,0,1}, {0,2,1} };
+static const itg TetFacEdg[4][3] = { {5,4,3}, {2,5,1}, {0,4,2}, {3,1,0} };
+static const itg tvpe[12][2]     = { {3,2}, {0,1}, {4,5}, {7,6}, {3,7}, {2,6},
+                                     {1,5}, {0,4}, {3,0}, {7,4}, {6,5}, {2,1} };
+static const itg tvpf[6][4]      = { {3,0,4,7}, {5,1,2,6}, {3,2,1,0},
+                                     {5,6,7,4},{3,7,6,2}, {5,4,0,1} };
+
+
+/*----------------------------------------------------------------------------*/
 /* Allocate and build a new octree from user's data                           */
 /*----------------------------------------------------------------------------*/
 
@@ -302,14 +315,7 @@ int64_t LolNewOctree(itg NmbVer, fpn *PtrCrd1, fpn *PtrCrd2,
                      itg NmbHex, itg *PtrHex1, itg *PtrHex2,
                      itg BasIdx, itg NmbThr)
 {
-   itg         i, j, k, t, EdgIdx, TotItmCnt = 0, MaxItmCnt = NmbVer, idx = 0;
-   const itg   TetEdg[6][2] = { {0,1}, {0,2}, {0,3}, {1,2}, {1,3}, {2,3} };
-   const itg   TetFac[4][3] = { {1,2,3}, {2,0,3}, {3,0,1}, {0,2,1} };
-   const itg   TetFacEdg[4][3] = { {5,4,3}, {2,5,1}, {0,4,2}, {3,1,0} };
-   const itg   tvpe[12][2] = { {3,2}, {0,1}, {4,5}, {7,6}, {3,7}, {2,6},
-                               {1,5}, {0,4}, {3,0}, {7,4}, {6,5}, {2,1} };
-   const itg   tvpf[6][4] = { {3,0,4,7}, {5,1,2,6}, {3,2,1,0},
-                              {5,6,7,4},{3,7,6,2}, {5,4,0,1} };
+   itg         i, j, k, t, EdgIdx, TotItmCnt = 0, MaxItmCnt, idx = 0;
    fpn         crd[3];
    BucSct     *buc;
    TreSct     *tre = NULL;
@@ -323,6 +329,7 @@ int64_t LolNewOctree(itg NmbVer, fpn *PtrCrd1, fpn *PtrCrd2,
 
    NmbThr = MAX(NmbThr, 1);
    NmbThr = MIN(NmbThr, MaxThr);
+   MaxItmCnt = NmbVer;
 
    // Setup a single octant octree
    tre = calloc(1, sizeof(TreSct));
