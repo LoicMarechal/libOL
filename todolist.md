@@ -1,3 +1,5 @@
+### HIGH PRIORITY
+
 ### STANDARD PRIORITY
 - reserve keywords and data structures for hybrid and 2nd order elements
 - optionally include the LPlib and build the octree in parallel
@@ -10,3 +12,4 @@
 - handle 32 or 64-bit floating points
 - add a mode flag to handle user's tables that either range from (0 -> n-1) or (1 -> n)
 - make the GetNearest() thread safe: allocate thread local stacks
+- translate the documentation to english

@@ -47,8 +47,10 @@ Here is a basic example that builds an octree from a surface mesh made of vertic
 
 ```C++
    int64_t OctIdx;
-   int TriIdx;
-   double dis, crd[3] = { 0.2, 2.5, -3.1 };
+   int     TriIdx;
+   double  dis, crd[3] = { 0.2, 2.5, -3.1 };
+
+   // Build an octree from a surface mesh
    OctIdx = LolNewOctree(  NmbVer, VerTab[1], VerTab[2],
                            0, NULL, NULL,
                            NmbTri, TriTab[1], TriTab[2],
@@ -58,8 +60,14 @@ Here is a basic example that builds an octree from a surface mesh made of vertic
                            0, NULL, NULL,
                            0, NULL, NULL,
                            1, 1);
+
+      // Find the closest triangle from a given point
       TriIdx = LolGetNearest(OctIdx, LolTypTri, crd, &dis, 0., NULL, NULL, 0);
+
+      // Print the triangle's index and the distance from the source point
       printf("The closest triangle from (%g %g %g) is: %d, distance = %g\n",
               crd[0], crd[1], crd[2], TriIdx, dis);
+
+      // Free the octree
       LolFreeOctree(OctIdx);
 ```
