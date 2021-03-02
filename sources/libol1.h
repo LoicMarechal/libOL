@@ -9,9 +9,16 @@
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   feb 03 2021                                        */
+/*    Last modification:   mar 02 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
+
+
+/*----------------------------------------------------------------------------*/
+/* ANSI C headers                                                             */
+/*----------------------------------------------------------------------------*/
+
+#include <stdint.h>
 
 
 /*----------------------------------------------------------------------------*/
@@ -47,6 +54,10 @@ enum TypTag {  LolTypVer=1, LolTypEdg, LolTypTri, LolTypQad,
 /* Public procedures                                                          */
 /*----------------------------------------------------------------------------*/
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int64_t LolNewOctree       (itg, fpn *, fpn *, itg, itg *, itg *,
                             itg, itg *, itg *, itg, itg *, itg *,
                             itg, itg *, itg *, itg, itg *, itg *,
@@ -58,6 +69,10 @@ itg     LolGetNearest      (int64_t, itg, fpn *, fpn *, fpn, itg (void *, itg),
 itg     LolIntersectSurface(int64_t, fpn *, fpn *, fpn *,
                             fpn, itg (void *, itg), void *, itg );
 itg     LolProjectVertex   (int64_t, fpn *, itg, itg, fpn *, itg);
+
+#ifdef __cplusplus
+}
+#endif
 
 
 /*----------------------------------------------------------------------------*/
