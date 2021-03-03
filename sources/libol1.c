@@ -208,7 +208,6 @@ static void    GetBox      (TreSct *, OctSct *, itg, itg *, itg, itg *,
                            char *, fpn [2][3], fpn, fpn *, fpn *, itg );
 static itg     BoxIntBox   (fpn [2][3], fpn [2][3], fpn);
 static void    SetItm      (MshSct *, itg, itg, itg, itg);
-static void    AniTri      (MshSct *, itg);
 static void    SetSonCrd   (itg, fpn *, fpn *, fpn *, fpn *);
 static void    GetOctLnk   (MshSct *, itg, fpn *, itg *, fpn *, OctSct *,
                            fpn *, fpn *, itg (void *, itg),  void *, itg);
@@ -259,10 +258,8 @@ static fpn     GetTriAni   (TriSct *);
 static void    PrjVerLin   (fpn *, fpn *, fpn *, fpn *);
 static fpn     PrjVerPla   (fpn *, fpn *, fpn *, fpn *);
 static void    LinCmbVec3  (fpn,   fpn *, fpn,   fpn *, fpn *);
-static void    ClrVec      (fpn *);
 static void    CpyVec      (fpn *, fpn *);
 static void    AddVec2     (fpn *, fpn *);
-static void    SubVec2     (fpn *, fpn *);
 static void    SubVec3     (fpn *, fpn *, fpn *);
 static void    AddScaVec1  (fpn,   fpn *);
 static void    AddScaVec2  (fpn,   fpn *, fpn *);
@@ -305,14 +302,14 @@ static const itg tvpf[6][4]      = { {3,0,4,7}, {5,1,2,6}, {3,2,1,0},
 /* Allocate and build a new octree from user's data                           */
 /*----------------------------------------------------------------------------*/
 
-int64_t LolNewOctree(itg NmbVer, fpn *PtrCrd1, fpn *PtrCrd2,
-                     itg NmbEdg, itg *PtrEdg1, itg *PtrEdg2,
-                     itg NmbTri, itg *PtrTri1, itg *PtrTri2,
-                     itg NmbQad, itg *PtrQad1, itg *PtrQad2,
-                     itg NmbTet, itg *PtrTet1, itg *PtrTet2,
-                     itg NmbPyr, itg *PtrPyr1, itg *PtrPyr2,
-                     itg NmbPri, itg *PtrPri1, itg *PtrPri2,
-                     itg NmbHex, itg *PtrHex1, itg *PtrHex2,
+int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
+                     itg NmbEdg, const itg *PtrEdg1, const itg *PtrEdg2,
+                     itg NmbTri, const itg *PtrTri1, const itg *PtrTri2,
+                     itg NmbQad, const itg *PtrQad1, const itg *PtrQad2,
+                     itg NmbTet, const itg *PtrTet1, const itg *PtrTet2,
+                     itg NmbPyr, const itg *PtrPyr1, const itg *PtrPyr2,
+                     itg NmbPri, const itg *PtrPri1, const itg *PtrPri2,
+                     itg NmbHex, const itg *PtrHex1, const itg *PtrHex2,
                      itg BasIdx, itg NmbThr)
 {
    itg         i, j, k, t, EdgIdx, TotItmCnt = 0, MaxItmCnt, idx = 0;
@@ -587,7 +584,6 @@ int64_t LolNewOctree(itg NmbVer, fpn *PtrCrd1, fpn *PtrCrd2,
 
 size_t LolFreeOctree(int64_t OctIdx)
 {
-   itg      i;
    TreSct  *tre = (TreSct *)OctIdx;
    size_t   MemUse = tre->MemUse;
 
@@ -664,7 +660,6 @@ static void GetBox(  TreSct *tre, OctSct *oct, itg typ, itg *NmbItm,
 {
    itg i;
    LnkSct *lnk;
-   HexSct hex;
    OctThrSct *ThrOct = &tre->thr[ ThrIdx ];
    MshThrSct *ThrMsh = &tre->msh->thr[ ThrIdx ];
    fpn xmid = (MinCrd[0] + MaxCrd[0])/2.;
@@ -754,7 +749,7 @@ itg LolGetNearest(int64_t OctIdx, itg typ, fpn *VerCrd, fpn *MinDis, fpn MaxDis,
 {
    TreSct     *tre = (TreSct *)OctIdx;
    itg         i, ins = 0, out = 0, MinItm = 0, ini[3], *tag, len;
-   fpn         MinCrd[3], MaxCrd[3], vec[3];
+   fpn         MinCrd[3], MaxCrd[3];
    MshSct     *msh = tre->msh;
    BucSct     *IniBuc, *buc, *ngb, **stk;
    OctThrSct  *ThrOct = &tre->thr[ ThrIdx ];
@@ -828,7 +823,7 @@ itg LolIntersectSurface(int64_t OctIdx, fpn *VerCrd, fpn *VerTng, fpn *MinDis,
    OctThrSct  *ThrOct = &tre->thr[ ThrIdx ];
    MshThrSct  *ThrMsh = &tre->msh->thr[ ThrIdx ];
    itg         i, ins=0, out=0, MinItm = 0, ini[3], *tag, len;
-   fpn         MinCrd[3], MaxCrd[3], vec[3];
+   fpn         MinCrd[3], MaxCrd[3];
    MshSct     *msh = tre->msh;
    BucSct     *IniBuc, *buc, *ngb, **stk;
 
@@ -897,7 +892,6 @@ itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
                      itg MinItm, fpn *MinCrd, itg ThrIdx)
 {
    TreSct     *tre = (TreSct *)OctIdx;
-   OctThrSct  *ThrOct = &tre->thr[ ThrIdx ];
    MshThrSct  *ThrMsh = &tre->msh->thr[ ThrIdx ];
    MshSct     *msh = tre->msh;
    VerSct      TmpVer;
@@ -1114,7 +1108,7 @@ static void GetOctLnk(  MshSct *msh, itg typ, fpn VerCrd[3], itg *MinItm,
                         fpn *MinDis, OctSct *oct, fpn MinCrd[3], fpn MaxCrd[3],
                         itg (UsrPrc)(void *, itg), void *UsrDat, itg ThrIdx )
 {
-   itg         i, *IdxTab;
+   itg         i;
    fpn         CurDis, SonMin[3], SonMax[3];
    LnkSct     *lnk;
    MshThrSct  *ThrMsh = &msh->thr[ ThrIdx ];
@@ -1200,7 +1194,7 @@ static void IntRayOct(  TreSct *tre, MshSct *msh, fpn *crd, fpn *tng,
                         fpn MaxCrd[3], itg (UsrPrc)(void *, itg), void *UsrDat,
                         itg ThrIdx )
 {
-   itg         i, *IdxTab;
+   itg         i;
    fpn         CurDis, SonMin[3], SonMax[3];
    VerSct      IntVer;
    LnkSct     *lnk;
@@ -1611,7 +1605,7 @@ static void AddTet(  MshSct *msh, TreSct *tre, OctSct *oct,
 static void SubOct(  MshSct *msh, TreSct *tre, OctSct *oct,
                      fpn MinCrd[3], fpn MaxCrd[3] )
 {
-   itg i, j, *IdxTab;
+   itg i;
    fpn SonMin[3], SonMax[3];
    LnkSct *lnk , *OctLnk = oct->lnk;
    OctSct *son;
@@ -2106,8 +2100,7 @@ static itg QadIntHex(QadSct *qad, HexSct *hex, fpn eps)
 
 static itg TetIntHex(TetSct *tet, HexSct *hex, fpn eps)
 {
-   itg i, j, pos, neg;
-   fpn CurDis;
+   itg i, j;
    VerSct IntVer;
 
    // If there is no intersection between the bounding box
@@ -2173,7 +2166,6 @@ static itg TetIntHex(TetSct *tet, HexSct *hex, fpn eps)
 
 itg VerInsTet(VerSct *ver, TetSct *tet, fpn eps)
 {
-   const itg TetEdg[6][2] = { {0,1}, {1,2}, {2,0}, {3,0}, {3,1}, {3,2} };
    const itg TetFac[4][3] = { {3,2,1}, {0,2,3}, {3,1,0}, {0,1,2} };
    itg i, j, ins = 1;
    TetSct SubTet;
@@ -2812,15 +2804,6 @@ static fpn DisPow(fpn a[3], fpn b[3])
    return(siz);
 }
 
-// V = V - U
-static void SubVec2(fpn u[3], fpn v[3])
-{
-   itg i;
-
-   for(i=0;i<3;i++)
-      v[i] -= u[i];
-}
-
 // W = U - V
 static void SubVec3(fpn u[3], fpn v[3], fpn w[3])
 {
@@ -2875,15 +2858,6 @@ static void LinCmbVec3(fpn w1, fpn v1[3], fpn w2, fpn v2[3], fpn v3[3])
 
    for(i=0;i<3;i++)
       v3[i] = w1 * v1[i] + w2 * v2[i];
-}
-
-// U = 0
-static void ClrVec(fpn u[3])
-{
-   itg i;
-
-   for(i=0;i<3;i++)
-      u[i] = 0.;
 }
 
 // V = U
