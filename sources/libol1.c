@@ -9,7 +9,7 @@
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   feb 03 2021                                        */
+/*    Last modification:   feb 04 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -202,7 +202,7 @@ static void    AddTri      (MshSct *, TreSct *, OctSct *, fpn *, fpn *);
 static void    AddQad      (MshSct *, TreSct *, OctSct *, fpn *, fpn *);
 static void    AddTet      (MshSct *, TreSct *, OctSct *, fpn *, fpn *);
 static void    SubOct      (MshSct *, TreSct *, OctSct *, fpn *, fpn *);
-static void    LnkItm      (TreSct *, OctSct *, itg, itg, char);
+static void    LnkItm      (TreSct *, OctSct *, itg, itg, unsigned char);
 static OctSct *GetCrd      (OctSct *, itg, fpn *, fpn *, fpn *);
 static void    GetBox      (TreSct *, OctSct *, itg, itg *, itg, itg *,
                            char *, fpn [2][3], fpn, fpn *, fpn *, itg );
@@ -1730,20 +1730,19 @@ static void SubOct(  MshSct *msh, TreSct *tre, OctSct *oct,
 /* Add an entity to an octant linked list                                     */
 /*----------------------------------------------------------------------------*/
 
-static void LnkItm(TreSct *tre, OctSct *oct, itg typ, itg idx, char ani)
+static void LnkItm(TreSct *tre, OctSct *oct, itg typ, itg idx, unsigned char ani)
 {
    itg i;
-   LnkSct *lnk;
+   LnkSct *lnk = oct->lnk;
 
-
-   lnk = oct->lnk;
+   // Make sure this entity is not already linked to this octant
    while(lnk)
    {
       if(lnk->typ == typ && lnk->idx == idx)
          return;
+
       lnk = lnk->nex;
    }
-
 
    // In case nore more link container are availbable, allocate a new bloc
    if(!tre->NexFreLnk)
@@ -1775,7 +1774,7 @@ static void LnkItm(TreSct *tre, OctSct *oct, itg typ, itg idx, char ani)
       // and deduce a max number of item form it
       if(typ == LolTypTri)
       {
-         oct->ani = (oct->ani * oct->NmbFac + ani) / (oct->NmbFac + 1);
+         oct->ani = MIN(255, (oct->ani * oct->NmbFac + ani) / (oct->NmbFac + 1));
          oct->MaxItm = MIN(MaxItmOct * ani, 255);
       }
 
@@ -2758,13 +2757,14 @@ static itg BoxIntBox(fpn box1[2][3], fpn box2[2][3], fpn eps)
 
 
 /*----------------------------------------------------------------------------*/
-/* Compute a triangle aspect ration                                           */
+/* Compute a triangle aspect ratio                                            */
 /*----------------------------------------------------------------------------*/
 
 static fpn GetTriAni(TriSct *tri)
 {
    fpn srf, len, MaxLen;
 
+   // Compute the ratio between the longest edge^2 and the triangle surface
    srf = GetTriSrf(tri);
    MaxLen = len = DisPow(tri->ver[0]->crd, tri->ver[1]->crd);
    len = DisPow(tri->ver[1]->crd, tri->ver[2]->crd);
@@ -2772,7 +2772,11 @@ static fpn GetTriAni(TriSct *tri)
    len = DisPow(tri->ver[2]->crd, tri->ver[0]->crd);
    MaxLen = MAX(len, MaxLen);
 
-   return(sqrt(MaxLen / srf));
+   // Limit the anisotropic ratio to 255
+   if(MaxLen > 255. * 255. * srf)
+      return(255.);
+   else
+      return(sqrt(MaxLen / srf));
 }
 
 
