@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.70                         */
+/*                      LIB OCTREE LOCALISATION V1.71                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   feb 04 2021                                        */
+/*    Last modification:   apr 12 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -147,7 +147,7 @@ typedef struct
 {
    MshThrSct thr[ MaxThr ];
    size_t   UsrSiz[ LolNmbTyp ], NmbItm[ LolNmbTyp ];
-   fpn      aniso, eps;
+   fpn      aniso, eps, (*TriCrdTab)[4][3];
    itg      BasIdx;
    char    *UsrPtr[ LolNmbTyp ];
 }MshSct;
@@ -249,6 +249,9 @@ static itg     VerInsTri   (TriSct *, VerSct *, fpn);
 static itg     VerInsEdg   (EdgSct *, VerSct *, fpn);
 static void    SetEdgTng   (EdgSct *);
 static fpn     GetTriAni   (TriSct *);
+#ifdef WITH_FAST_TRIANGLES
+static fpn     DisVerTriStl(MshSct *, fpn *, fpn (*)[3]);
+#endif
 
 
 /*----------------------------------------------------------------------------*/
@@ -523,11 +526,34 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
    }
 
    // Insert each triangle in the octree
+#ifdef WITH_FAST_TRIANGLES
+   if(msh->NmbItm[ LolTypTri ])
+   {
+      // Allocate an STL-like table to store
+      // the triangle's nodes coordinates and their normal
+      msh->TriCrdTab = NewMem(tre, (msh->NmbItm[ LolTypTri ] + 1) * 12 * sizeof(double));
+      MshThr = &msh->thr[0];
+
+      for(i=0;i<msh->NmbItm[ LolTypTri ];i++)
+      {
+         SetItm(msh, LolTypTri, i + BasIdx, TngFlg | AniFlg, 0);
+         AddTri(msh, tre, &tre->oct, tre->bnd[0], tre->bnd[1]);
+
+         // Copy the triangle's nodes coordinates and its normal
+         // to the STL-like table for faster distance calculation
+         CpyVec(MshThr->tri.ver[0]->crd, msh->TriCrdTab[i+1][0]);
+         CpyVec(MshThr->tri.ver[1]->crd, msh->TriCrdTab[i+1][1]);
+         CpyVec(MshThr->tri.ver[2]->crd, msh->TriCrdTab[i+1][2]);
+         CpyVec(MshThr->tri.nrm, msh->TriCrdTab[i+1][3]);
+      }
+   }
+#else
    for(i=0;i<msh->NmbItm[ LolTypTri ];i++)
    {
       SetItm(msh, LolTypTri, i + BasIdx, TngFlg | AniFlg, 0);
       AddTri(msh, tre, &tre->oct, tre->bnd[0], tre->bnd[1]);
    }
+#endif   
 
    // Insert each quad in the octree
    for(i=0;i<msh->NmbItm[ LolTypQad ];i++)
@@ -1153,8 +1179,12 @@ static void GetOctLnk(  MshSct *msh, itg typ, fpn VerCrd[3], itg *MinItm,
             if(UsrPrc && !UsrPrc(UsrDat, lnk->idx))
                continue;
 
+#ifdef WITH_FAST_TRIANGLES
+            CurDis = DisVerTriStl(msh, VerCrd, msh->TriCrdTab[ lnk->idx ]);
+#else
             SetItm(msh, LolTypTri, lnk->idx, 0, ThrIdx);
             CurDis = DisVerTri(msh, VerCrd, &ThrMsh->tri);
+#endif
          }
          else if(lnk->typ == LolTypQad)
          {
@@ -2538,6 +2568,50 @@ static fpn DisVerTri(MshSct *msh, fpn VerCrd[3], TriSct *tri)
    // Return the square of the distance
    return(DisPow(VerCrd, ImgCrd));
 }
+
+
+/*----------------------------------------------------------------------------*/
+/* Fast compute the distance between a vertex and a triangle in an STL form   */
+/*----------------------------------------------------------------------------*/
+
+#ifdef WITH_FAST_TRIANGLES
+static fpn DisVerTriStl(MshSct *msh, fpn VerCrd[3], fpn TriCrd[4][3])
+{
+   fpn ImgCrd[3], TmpCrd[3], u[3], v[3], w[3], nrm[3], SubVol[3], TotVol;
+
+   // Project the vertex on the triangle's plane
+   PrjVerPla(VerCrd, TriCrd[0], TriCrd[3], ImgCrd);
+
+   // Compute the vectors stemming from the projection to the triangle's nodes
+   SubVec3(TriCrd[0], ImgCrd, u);
+   SubVec3(TriCrd[1], ImgCrd, v);
+   SubVec3(TriCrd[2], ImgCrd, w);
+
+   // Compute the three tets' volumes
+   CrsPrd(v, w, nrm);
+   SubVol[0] = -DotPrd(nrm, TriCrd[3]);
+   SubVol[0] = MAX(SubVol[0], 0.);
+
+   CrsPrd(w, u, nrm);
+   SubVol[1] = -DotPrd(nrm, TriCrd[3]);
+   SubVol[1] = MAX(SubVol[1], 0.);
+
+   CrsPrd(u, v, nrm);
+   SubVol[2] = -DotPrd(nrm, TriCrd[3]);
+   SubVol[2] = MAX(SubVol[2], 0.);
+
+   // Compute the closest position with the barycentric coordinates
+   TotVol = SubVol[0] + SubVol[1] + SubVol[2];
+   MulVec2(SubVol[0] / TotVol, TriCrd[0], ImgCrd);
+   MulVec2(SubVol[1] / TotVol, TriCrd[1], TmpCrd);
+   AddVec2(TmpCrd, ImgCrd);
+   MulVec2(SubVol[2] / TotVol, TriCrd[2], TmpCrd);
+   AddVec2(TmpCrd, ImgCrd);
+
+   // Return the square of the distance
+   return(DisPow(VerCrd, ImgCrd));
+}
+#endif
 
 
 /*----------------------------------------------------------------------------*/
