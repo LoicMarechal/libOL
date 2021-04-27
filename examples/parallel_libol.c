@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.63                         */
+/*                      LIB OCTREE LOCALISATION V1.73                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /* Description:         Parallel localization on a surface mesh               */
 /* Author:              Loic MARECHAL                                         */
 /* Creation date:       oct 02 2020                                           */
-/* Last modification:   oct 22 2020                                           */
+/* Last modification:   apr 27 2021                                           */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -36,6 +36,7 @@
 #define INX 100
 #define INY 100
 #define INZ 100
+#define MUL 1
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #define POW(a) ((a)*(a))
@@ -64,7 +65,7 @@ int main()
 {
    int i, j, NmbVer, NmbTri, ver, dim, (*TriTab)[3], ref, idx, NmbThr, GrdTyp;
    int64_t MshIdx, ParIdx;
-   double t, avg = 0., (*VerTab)[3], MaxCrd[3];
+   double t, mid, siz, avg = 0., (*VerTab)[3], MaxCrd[3];
 
 
    /*---------------------------------------*/
@@ -117,6 +118,8 @@ int main()
       exit(1);
    }
 
+   SetExtendedAttributes(ParIdx, SetInterleavingFactor, 16);
+
    if(!(GrdTyp = NewType(ParIdx, INX)))
    {
       puts("Error while creating the grid data type.");
@@ -147,6 +150,15 @@ int main()
             MinCrd[j] = VerTab[i][j];
       else if(VerTab[i][j] > MaxCrd[j])
          MaxCrd[j] = VerTab[i][j];
+
+   // Scale the grid
+   for(i=0;i<3;i++)
+   {
+      mid = (MaxCrd[i] + MinCrd[i]) / 2.;
+      siz = (MaxCrd[i] - MinCrd[i]) / 2.;
+      MinCrd[i] = mid - siz * MUL;
+      MaxCrd[i] = mid + siz * MUL;
+   }
 
    IncCrd[0] = (MaxCrd[0] - MinCrd[0]) / INX;
    IncCrd[1] = (MaxCrd[1] - MinCrd[1]) / INY;
