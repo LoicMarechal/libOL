@@ -13,3 +13,4 @@
 - add a mode flag to handle user's tables that either range from (0 -> n-1) or (1 -> n)
 - make the GetNearest() thread safe: allocate thread local stacks
 - translate the documentation to english
+- optional mode for faster queries (+35%) at the cost of 2.5 the memory footprint

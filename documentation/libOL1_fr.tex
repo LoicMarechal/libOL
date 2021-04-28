@@ -37,8 +37,8 @@
 
 \begin{flushright}
 \Large Lo\"ic MAR\'ECHAL / INRIA, Projet Gamma\\
-\Large Janvier 2021 \\
-\normalsize Document v1.41, librairie v1.64
+\Large Avril 2021 \\
+\normalsize Document v1.51, librairie v1.73
 \end{flushright}
 
 \end{titlepage}
@@ -421,8 +421,8 @@ index      & int    & retourne l'index d'un octree à fournir aux commandes de l
 \end{tabular}
 \subsubsection*{Commentaires}
 Si vous avez du mal à jongler avec les déclarations de tableaux multidimensionnels, plutôt cryptiques, du C, vous pouvez passer un simple tableau unidimensionnel de double (double *), où VerTab[0] est la coordonnée $x_1$ du premier vertex, VerTab[1] est $y_1$, VerTab[2] est $z_1$, VerTab[3] est $x_2$ et ainsi de suite.
-
-Notez que la mémoire prise par l'octree dépend aussi du paramètre MaxThr, car une petite quantité de mémoire de travail est allouée pour chaque thread.
+Notez que la mémoire prise par l'octree dépend aussi du paramètre MaxThr, car une petite quantité de mémoire de travail est allouée pour chaque thread (plus 10\%).
+De plus, si vous compilez la librairie en passant l'option {\tt -DWITH\_FAST\_MODE} au compilateur, la structure octree occupera 2,5 fois plus de mémoire, mais toutes les requêtes seront 35\% plus rapides.
 
 L'exemple suivant génère un octree autour d'un maillage de quatre sommets et deux triangles.
 

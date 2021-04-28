@@ -9,7 +9,7 @@
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   apr 27 2021                                        */
+/*    Last modification:   apr 28 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -36,7 +36,7 @@
 
 #define MaxItmOct 20
 #define MaxOctLvl 10
-#define ItmPerBuc 100
+#define ItmPerBuc 300
 #define MemBlkSiz 100000
 #define TngFlg    1
 #define AniFlg    2
@@ -157,7 +157,7 @@ typedef struct
 typedef struct OctSctPtr
 {
 #ifdef WITH_FAST_MODE
-   double MinCrd[3], MaxCrd[3];
+   fpn   MinCrd[3], MaxCrd[3];
 #endif
    union
    {
@@ -217,8 +217,8 @@ static void    SetSonCrd   (itg, fpn *, fpn *, fpn *, fpn *);
 static void    GetOctLnk   (MshSct *, itg, fpn *, itg *, fpn *, OctSct *,
                            fpn *, fpn *, itg (void *, itg),  void *, itg);
 static void    IntRayOct   (OtrSct *, MshSct *, fpn *, fpn *, itg *, fpn *,
-                            OctSct *, fpn *, fpn *, itg (void *, itg),  void *,
-                            itg);
+                            OctSct *, fpn *, fpn *, itg (void *, itg),
+                            void *, itg);
 static void    GetBucBox   (OtrSct *, BucSct *, fpn *, fpn *);
 static BucSct *GetBucNgb   (OtrSct *, BucSct *, itg);
 static fpn     DisVerOct   (fpn *, fpn *, fpn *);
@@ -336,8 +336,11 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
    if(!NmbVer || !PtrCrd1 || !PtrCrd2 || (BasIdx < 0) || (BasIdx > 1) )
       return(0);
 
+   // Get and bound the number of threads
    NmbThr = MAX(NmbThr, 1);
    NmbThr = MIN(NmbThr, MaxThr);
+
+   // Start counting the total number of items in the mesh
    MaxItmCnt = NmbVer;
 
    // Setup a single octant octree
@@ -377,16 +380,17 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
    msh->UsrPtr[ LolTypTet ] = (char *)PtrTet1;
    msh->UsrSiz[ LolTypTet ] = (char *)PtrTet2 - (char *)PtrTet1;
 
+   // Allocation of thread related buffers to make the libOL thread safe
    for(t=0;t<NmbThr;t++)
    {
       MshThr = msh->thr[t] = NewMem(otr, sizeof(MshThrSct));
       memset(MshThr, 0, sizeof(MshThrSct));
 
-      MshThr->FlgTab = NewMem(otr, (MaxItmCnt + 1) * sizeof(char) );
-      memset(MshThr->FlgTab, 0, (MaxItmCnt + 1) * sizeof(char));
+      MshThr->FlgTab = NewMem(otr, (MaxItmCnt + 1) * sizeof(char));
+      memset(MshThr->FlgTab, 0,    (MaxItmCnt + 1) * sizeof(char));
 
-      MshThr->TagTab = NewMem(otr, (MaxItmCnt + 1) * sizeof(itg) );
-      memset(MshThr->TagTab, 0, (MaxItmCnt + 1) * sizeof(itg));
+      MshThr->TagTab = NewMem(otr, (MaxItmCnt + 1) * sizeof(itg));
+      memset(MshThr->TagTab, 0,    (MaxItmCnt + 1) * sizeof(itg));
 
       MshThr->tag = 0;
 
@@ -401,15 +405,17 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
 
    // Set the grid size depending on the number of entities in the mesh
    otr->GrdLvl = log(TotItmCnt / ItmPerBuc) / (3 * log(2));
-   otr->NmbBuc = 1<<otr->GrdLvl;
+   otr->NmbBuc = 1 << otr->GrdLvl;
    otr->grd    = NewMem(otr, CUB(otr->NmbBuc) * sizeof(BucSct));
    otr->NmbThr = NmbThr;
 
+   // Setup working tables for each thread sub structure
    for(t=0;t<NmbThr;t++)
    {
       MshThr = msh->thr[t];
       OctThr = otr->thr[t];
 
+      // Allocate an acceleration grid for each thread
       OctThr->ThrStk = NewMem(otr, CUB(otr->NmbBuc) * sizeof(void *));
       OctThr->ThrTag = NewMem(otr, CUB(otr->NmbBuc) * sizeof(itg));
 
@@ -2665,16 +2671,16 @@ static fpn DisVerTriStl(MshSct *msh, fpn VerCrd[3], fpn TriCrd[4][3])
    SubVec3(TriCrd[2], ImgCrd, w);
 
    // Compute the three tets' volumes
-   CrsPrd(v, w, nrm);
-   SubVol[0] = -DotPrd(nrm, TriCrd[3]);
+   CrsPrd(w, v, nrm);
+   SubVol[0] = DotPrd(nrm, TriCrd[3]);
    SubVol[0] = MAX(SubVol[0], 0.);
 
-   CrsPrd(w, u, nrm);
-   SubVol[1] = -DotPrd(nrm, TriCrd[3]);
+   CrsPrd(u, w, nrm);
+   SubVol[1] = DotPrd(nrm, TriCrd[3]);
    SubVol[1] = MAX(SubVol[1], 0.);
 
-   CrsPrd(u, v, nrm);
-   SubVol[2] = -DotPrd(nrm, TriCrd[3]);
+   CrsPrd(v, u, nrm);
+   SubVol[2] = DotPrd(nrm, TriCrd[3]);
    SubVol[2] = MAX(SubVol[2], 0.);
 
    // Compute the closest position with the barycentric coordinates
@@ -2744,7 +2750,7 @@ static fpn GetTriSrf(TriSct *tri)
 
 
 /*----------------------------------------------------------------------------*/
-/* fpn precision computed volume on fpn coordinates                     */
+/* fpn precision computed volume on fpn coordinates                           */
 /*----------------------------------------------------------------------------*/
 
 static fpn GetVolTet(TetSct *tet)

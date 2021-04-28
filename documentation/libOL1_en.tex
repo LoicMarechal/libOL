@@ -37,8 +37,8 @@
 
 \begin{flushright}
 \Large Lo\"ic MAR\'ECHAL / INRIA, Gamma project\\
-\Large February 2021 \\
-\normalsize Document v1.50, library v1.70
+\Large April 2021 \\
+\normalsize Document v1.51, library v1.73
 \end{flushright}
 
 \end{titlepage}
@@ -407,6 +407,7 @@ index      & int    & return a unique octree index that shall be provided to any
 \end{tabular}
 \subsubsection*{Comments}
 Setting the number of threads have some consequence on the memory footprint, on the order of 10\% additional memory per thread.
+If you pass on the optional argument {\tt -DWITH\_FAST\_MODE} to the compiler, the octree structure memory footprint will be 2.5 times higher but all queries will perform 35\% faster.
 
 \subsubsection*{Example}
 

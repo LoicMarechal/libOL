@@ -1,6 +1,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## libOL version 1.70
+## libOL version 1.73
 Quick and easy spatial localization with _octree_
 
 ## Overview
@@ -39,6 +39,8 @@ Optionally, you may download some sample meshes to run the examples:
 - move them into /opt/libOL/sample_meshes/
 - uncompress them with `lzip -d *.meshb.lz`
 - you may now enter /opt/libOL/examples directory and run the various examples
+
+When speed is is more critical than memory, you can compile the library with the `-DWITH_FAST_MODE` option in order to speed-up queries by 35%, at the cost of 2.5 times the memory footprint.
 
 ## Usage
 It is made of a single *ANSI C* file and a header file to be compiled and linked alongside the calling program.  

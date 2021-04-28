@@ -5,7 +5,7 @@
 
 cmake_minimum_required (VERSION 3.7.2)
 set (libOL_VERSION_MAJOR 1)
-set (libOL_VERSION_MINOR 60)
+set (libOL_VERSION_MINOR 73)
 project (libOL VERSION ${libOL_VERSION_MAJOR}.${libOL_VERSION_MINOR} LANGUAGES C)
 
 option(WITH_CPACK    "Enable cpack target to generate a zip file containing binaries"   OFF)
@@ -68,13 +68,7 @@ install (DIRECTORY sample_meshes DESTINATION share/libOL)
 ######################################
 
 if (WITH_CPACK)
-   include (InstallRequiredSystemLibraries)
-   set (CPACK_GENERATOR TXZ)
-   set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/copyright.txt)
-   set (CPACK_PACKAGE_VERSION_MAJOR ${libOL_VERSION_MAJOR})
-   set (CPACK_PACKAGE_VERSION_MINOR ${libOL_VERSION_MINOR})
-   set(CPACK_COMPONENTS_ALL applications examples libraries headers)
-   include (CPack)
+   include(CMakeCPack.cmake)
 endif ()
 
 
