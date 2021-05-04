@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.73                         */
+/*                      LIB OCTREE LOCALISATION V1.74                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   apr 28 2021                                        */
+/*    Last modification:   may 04 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -150,7 +150,7 @@ typedef struct
    int64_t     CptOct, CptBuc, CptTri;
 #endif
    fpn         aniso, eps, (*TriCrdTab)[4][3];
-   itg         BasIdx;
+   itg         BasIdx, StlMod;
    char       *UsrPtr[ LolNmbTyp ];
 }MshSct;
 
@@ -277,7 +277,7 @@ static void    AddScaVec1  (fpn,   fpn *);
 static void    AddScaVec2  (fpn,   fpn *, fpn *);
 static void    MulVec1     (fpn,   fpn *);
 static void    MulVec2     (fpn,   fpn *, fpn *);
-static void    NrmVec      (fpn *);
+//static void    NrmVec      (fpn *);
 static void    CrsPrd      (fpn *, fpn *, fpn *);
 static fpn     DotPrd      (fpn *, fpn *);
 static fpn     dis         (fpn *, fpn *);
@@ -324,8 +324,9 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
                      itg NmbHex, const itg *PtrHex1, const itg *PtrHex2,
                      itg BasIdx, itg NmbThr)
 {
-   itg         i, j, k, t, EdgIdx, TotItmCnt = 0, MaxItmCnt, idx = 0;
-   fpn         crd[3];
+   itg         i, j, k, t, EdgIdx, MaxItmCnt;
+   itg         TotItmCnt = 0, idx = 0, NmbStl = 0;
+   fpn         crd[3], *PtrStl1, *PtrStl2;
    BucSct     *buc;
    OtrSct     *otr = NULL;
    MshSct     *msh;
@@ -350,6 +351,18 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
    // Setup the mesh structure
    msh = NewMem(otr, sizeof(MshSct));
    msh->BasIdx = BasIdx;
+
+   // Trick: we need to handle the special STL mesh case
+   if(NmbVer < 0)
+   {
+      msh->StlMod = 1;
+      NmbTri   = -NmbVer;
+      PtrTri1  = (itg *)PtrCrd1;
+      PtrTri2  = (itg *)PtrCrd2;
+      NmbVer   = 0;
+      PtrCrd1  = NULL;
+      PtrCrd2  = NULL;
+   }
 
    msh->NmbItm[ LolTypVer ] = NmbVer;
    TotItmCnt               += NmbVer;
@@ -624,6 +637,20 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
 
    // Return the octree's unique ID
    return((int64_t)otr);
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* Allocate and build a new octree from a triangle only STL mesh              */
+/*----------------------------------------------------------------------------*/
+
+int64_t LolNewOctreeFromSTL(itg NmbTri, const fpn *PtrCrd1, const fpn *PtrCrd2,
+                            itg BasIdx, itg NmbThr)
+{
+   // Trick: set the number of triangles as a negative number of vertices
+   return(LolNewOctree(-NmbTri, PtrCrd1, PtrCrd2, 0, NULL, NULL, 0, NULL, NULL,
+                        0, NULL, NULL, 0, NULL, NULL, 0, NULL, NULL,
+                        0, NULL, NULL, 0, NULL, NULL , BasIdx, NmbThr));
 }
 
 
@@ -1167,12 +1194,14 @@ static void GetOctLnk(  MshSct *msh, itg typ, fpn VerCrd[3], itg *MinItm,
 {
    itg         i;
    fpn         CurDis, SonMin[3], SonMax[3];
-   OctSct     *son;
    LnkSct     *lnk;
    MshThrSct  *ThrMsh = msh->thr[ ThrIdx ];
+#ifdef WITH_FAST_MODE
+   OctSct     *son;
+#endif
 
 #ifdef WITH_PROFILING
-      msh->CptOct++;
+   msh->CptOct++;
 #endif
 
    if(oct->sub)
@@ -1362,6 +1391,7 @@ static void SetItm(MshSct *msh, itg typ, itg idx, itg flg, itg ThrIdx)
 {
    itg         i, j, *IdxTab;
    const itg   TetEdgFac[6][2] = { {2,3}, {1,3}, {1,2}, {0,3}, {0,2}, {0,1} };
+   fpn        *CrdTab;
    MshThrSct  *ThrMsh = msh->thr[ ThrIdx ];
 
    if(typ == LolTypVer)
@@ -1384,10 +1414,21 @@ static void SetItm(MshSct *msh, itg typ, itg idx, itg flg, itg ThrIdx)
    {
       // Setup the temporary triangle structure with this triangle's ID
       ThrMsh->tri.idx = idx;
-      IdxTab = (itg *)GetPtrItm(msh, typ, idx);
 
-      for(i=0;i<3;i++)
-         CpyVec((fpn *)GetPtrItm(msh, LolTypVer, IdxTab[i]), ThrMsh->tri.ver[i]->crd);
+      if(msh->StlMod)
+      {
+         CrdTab = (fpn *)GetPtrItm(msh, typ, idx);
+
+         for(i=0;i<3;i++)
+            CpyVec(&CrdTab[ i * 3 ], ThrMsh->tri.ver[i]->crd);
+      }
+      else
+      {
+         IdxTab = (itg *)GetPtrItm(msh, typ, idx);
+
+         for(i=0;i<3;i++)
+            CpyVec((fpn *)GetPtrItm(msh, LolTypVer, IdxTab[i]), ThrMsh->tri.ver[i]->crd);
+      }
 
       SetTriNrm(&ThrMsh->tri);
 
@@ -1496,21 +1537,43 @@ static char *GetPtrItm(MshSct *msh, itg typ, itg idx)
 
 static void SetMshBox(OtrSct *box, MshSct *msh)
 {
-   itg i, j;
+   itg i, j, k;
    fpn MinCrd[3], MaxCrd[3], MidCrd[3], *CrdTab, siz;
 
    // Compute the bounding box (rectangular)
-   CpyVec((fpn *)GetPtrItm(msh, LolTypVer, msh->BasIdx), MinCrd);
-   CpyVec((fpn *)GetPtrItm(msh, LolTypVer, msh->BasIdx), MaxCrd);
-
-   for(i=1;i<msh->NmbItm[ LolTypVer ];i++)
+   if(msh->StlMod)
    {
-      CrdTab = (fpn *)GetPtrItm(msh, LolTypVer, i + msh->BasIdx);
+      CpyVec((fpn *)GetPtrItm(msh, LolTypTri, msh->BasIdx), MinCrd);
+      CpyVec(MinCrd, MaxCrd);
 
-      for(j=0;j<3;j++)
+      for(i=1;i<msh->NmbItm[ LolTypTri ];i++)
       {
-         MinCrd[j] = MIN(MinCrd[j], CrdTab[j]);
-         MaxCrd[j] = MAX(MaxCrd[j], CrdTab[j]);
+         CrdTab = (fpn *)GetPtrItm(msh, LolTypTri, i + msh->BasIdx);
+
+         for(j=0;j<3;j++)
+         {
+            for(k=0;k<3;k++)
+            {
+               MinCrd[k] = MIN(MinCrd[k], CrdTab[ j*3 + k ]);
+               MaxCrd[k] = MAX(MaxCrd[k], CrdTab[ j*3 + k ]);
+            }
+         }
+      }
+   }
+   else
+   {
+      CpyVec((fpn *)GetPtrItm(msh, LolTypVer, msh->BasIdx), MinCrd);
+      CpyVec(MinCrd, MaxCrd);
+
+      for(i=1;i<msh->NmbItm[ LolTypVer ];i++)
+      {
+         CrdTab = (fpn *)GetPtrItm(msh, LolTypVer, i + msh->BasIdx);
+
+         for(j=0;j<3;j++)
+         {
+            MinCrd[j] = MIN(MinCrd[j], CrdTab[j]);
+            MaxCrd[j] = MAX(MaxCrd[j], CrdTab[j]);
+         }
       }
    }
 
@@ -2982,7 +3045,7 @@ static void SubVec3(fpn u[3], fpn v[3], fpn w[3])
 }
 
 // Euclidian norm
-static void NrmVec(fpn u[3])
+/*static void NrmVec(fpn u[3])
 {
    itg i;
    fpn dp = 0;
@@ -2997,7 +3060,7 @@ static void NrmVec(fpn u[3])
 
    for(i=0;i<3;i++)
       u[i] *= dp;
-}
+}*/
 
 // Dot Product
 static fpn DotPrd(fpn u[3], fpn v[3])

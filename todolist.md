@@ -1,4 +1,6 @@
 ### HIGH PRIORITY
+- add a packed-vertex GetNearest() that would process a group of geometrically close vertices in one go
+
 
 ### STANDARD PRIORITY
 - reserve keywords and data structures for hybrid and 2nd order elements
@@ -14,3 +16,4 @@
 - make the GetNearest() thread safe: allocate thread local stacks
 - translate the documentation to english
 - optional mode for faster queries (+35%) at the cost of 2.5 the memory footprint
+- add a NewOctreeFromSTL() procedure for simpler and faster octree build and queries
