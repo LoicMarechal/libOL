@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.74                         */
+/*                      LIB OCTREE LOCALISATION V1.75                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   may 04 2021                                        */
+/*    Last modification:   may 05 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -178,7 +178,7 @@ typedef struct
 {
    VerSct   ver[8];
    HexSct   hex;
-   itg      tag, *ThrTag;
+   itg      tag, *ThrTag, PrvTriIdx;
    BucSct **ThrStk;
 }OtrThrSct;
 
@@ -363,6 +363,8 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
       PtrCrd1  = NULL;
       PtrCrd2  = NULL;
    }
+   else
+      msh->StlMod = 0;
 
    msh->NmbItm[ LolTypVer ] = NmbVer;
    TotItmCnt               += NmbVer;
@@ -846,6 +848,24 @@ itg LolGetNearest(int64_t OctIdx, itg typ, fpn *VerCrd, fpn *MinDis, fpn MaxDis,
    len = otr->NmbBuc;
    *MinDis = (MaxDis > 0.) ? POW(MaxDis) : DBL_MAX;
 
+   if(MaxDis > 0.)
+   {
+      *MinDis = POW(MaxDis);
+   }
+   else if ((typ == LolTypTri) && ThrOct->PrvTriIdx)
+   {
+#ifdef WITH_FAST_MODE
+      *MinDis = DisVerTriStl(msh, VerCrd, msh->TriCrdTab[ ThrOct->PrvTriIdx ]);
+#else
+      SetItm(msh, LolTypTri, ThrOct->PrvTriIdx, 0, ThrIdx);
+      *MinDis = DisVerTri(msh, VerCrd, &ThrMsh->tri);
+#endif
+   }
+   else
+   {
+      *MinDis = DBL_MAX;
+   }
+
    // Get the vertex's integer coordinates in the grid
    // and clip it if it stands outside the bounding box
    for(i=0;i<3;i++)
@@ -887,6 +907,9 @@ itg LolGetNearest(int64_t OctIdx, itg typ, fpn *VerCrd, fpn *MinDis, fpn MaxDis,
    }
 
    *MinDis = sqrt(*MinDis);
+
+   if((typ == LolTypTri) && MinItm)
+      ThrOct->PrvTriIdx = MinItm;
 
    return(MinItm);
 }
