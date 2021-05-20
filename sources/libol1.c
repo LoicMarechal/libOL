@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.75                         */
+/*                      LIB OCTREE LOCALISATION V1.76                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   may 05 2021                                        */
+/*    Last modification:   may 20 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -34,17 +34,18 @@
 /* Defines and macros                                                         */
 /*----------------------------------------------------------------------------*/
 
-#define MaxItmOct 20
-#define MaxOctLvl 10
-#define ItmPerBuc 300
-#define MemBlkSiz 100000
-#define TngFlg    1
-#define AniFlg    2
-#define MaxThr    256
-#define MIN(a,b)  ((a) < (b) ? (a) : (b))
-#define MAX(a,b)  ((a) > (b) ? (a) : (b))
-#define POW(a)    ((a)*(a))
-#define CUB(a)    ((a)*(a)*(a))
+#define MaxItmOct    20
+#define MaxOctLvl    10
+#define ItmPerBuc    300
+#define MemBlkSiz    100000
+#define TngFlg       1
+#define AniFlg       2
+#define MaxThr       256
+#define MIN(a,b)     ((a) < (b) ? (a) : (b))
+#define MAX(a,b)     ((a) > (b) ? (a) : (b))
+#define POW(a)       ((a)*(a))
+#define CUB(a)       ((a)*(a)*(a))
+#define BUC(i,j,k,l) (((((i) << l) + (j)) << l) + (k))
 
 
 /*----------------------------------------------------------------------------*/
@@ -324,9 +325,8 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
                      itg NmbHex, const itg *PtrHex1, const itg *PtrHex2,
                      itg BasIdx, itg NmbThr)
 {
-   itg         i, j, k, t, EdgIdx, MaxItmCnt;
-   itg         TotItmCnt = 0, idx = 0, NmbStl = 0;
-   fpn         crd[3], *PtrStl1, *PtrStl2;
+   itg         i, j, k, t, EdgIdx, MaxItmCnt, TotItmCnt = 0, idx = 0;
+   fpn         crd[3];
    BucSct     *buc;
    OtrSct     *otr = NULL;
    MshSct     *msh;
@@ -617,7 +617,7 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
 
          for(k=0;k<otr->NmbBuc;k++)
          {
-            buc = &otr->grd[ i * POW(otr->NmbBuc) + j * otr->NmbBuc + k ];
+            buc = &otr->grd[ BUC(i,j,k,otr->GrdLvl) ];
             buc->oct = GetCrd(&otr->oct, otr->GrdLvl,
                               crd, otr->bnd[0], otr->bnd[1]);
             buc->pos[0] = i;
@@ -846,14 +846,17 @@ itg LolGetNearest(int64_t OctIdx, itg typ, fpn *VerCrd, fpn *MinDis, fpn MaxDis,
    tag = ThrOct->ThrTag;
    stk = ThrOct->ThrStk;
    len = otr->NmbBuc;
-   *MinDis = (MaxDis > 0.) ? POW(MaxDis) : DBL_MAX;
 
+   // If no maximum search distance is given, use infinity
    if(MaxDis > 0.)
    {
       *MinDis = POW(MaxDis);
    }
-   else if ((typ == LolTypTri) && ThrOct->PrvTriIdx)
+   else if(!UsrPrc && (typ == LolTypTri) && ThrOct->PrvTriIdx)
    {
+      // If no user procedure is used and a closest triangle was found after
+      // a previous search, comput the distance from the seed point
+      // and this triangle as a maximum search distance
 #ifdef WITH_FAST_MODE
       *MinDis = DisVerTriStl(msh, VerCrd, msh->TriCrdTab[ ThrOct->PrvTriIdx ]);
 #else
@@ -875,7 +878,7 @@ itg LolGetNearest(int64_t OctIdx, itg typ, fpn *VerCrd, fpn *MinDis, fpn MaxDis,
       ini[i] = MIN(len-1, ini[i]);
    }
 
-   IniBuc = &otr->grd[ ini[0] * POW(len) + ini[1] * len + ini[2] ];
+   IniBuc = &otr->grd[ BUC(ini[0], ini[1], ini[2], otr->GrdLvl) ];
 
    // Push the octant containing the starting point on the lifo stack
    stk[ ins++ ] = IniBuc;
@@ -893,7 +896,7 @@ itg LolGetNearest(int64_t OctIdx, itg typ, fpn *VerCrd, fpn *MinDis, fpn MaxDis,
       // Push unprocessed neighbours on the stack as long as they are not too far
       for(i=0;i<6;i++)
       {
-         if( !(ngb = GetBucNgb(otr, buc, i)) || (tag[ ngb->idx ] == ThrOct->tag) )
+         if(!(ngb = GetBucNgb(otr, buc, i)) || (tag[ ngb->idx ] == ThrOct->tag))
             continue;
 
          GetBucBox(otr, ngb, MinCrd, MaxCrd);
@@ -908,7 +911,8 @@ itg LolGetNearest(int64_t OctIdx, itg typ, fpn *VerCrd, fpn *MinDis, fpn MaxDis,
 
    *MinDis = sqrt(*MinDis);
 
-   if((typ == LolTypTri) && MinItm)
+   // Remember the last triangle to setup the next search with
+   if(!UsrPrc && (typ == LolTypTri) && MinItm)
       ThrOct->PrvTriIdx = MinItm;
 
    return(MinItm);
@@ -947,7 +951,7 @@ itg LolIntersectSurface(int64_t OctIdx, fpn *VerCrd, fpn *VerTng, fpn *MinDis,
       ini[i] = MIN(otr->NmbBuc-1, ini[i]);
    }
 
-   IniBuc = &otr->grd[ ini[0] * POW(len) + ini[1] * len + ini[2] ];
+   IniBuc = &otr->grd[ BUC(ini[0], ini[1], ini[2],otr->GrdLvl) ];
 
    // Push the octant containing the starting point on the lifo stack
    stk[ ins++ ] = IniBuc;
@@ -1158,28 +1162,22 @@ static void GetBucBox(  OtrSct *otr, BucSct *buc,
 static BucSct *GetBucNgb(OtrSct *otr, BucSct *buc, itg dir)
 {
    if( (dir == 0) && (buc->pos[0] > 0) )
-      return(&otr->grd[ (buc->pos[0]-1) * POW(otr->NmbBuc)
-            + buc->pos[1] * otr->NmbBuc + buc->pos[2] ]);
+      return(&otr->grd[ BUC(buc->pos[0]-1, buc->pos[1], buc->pos[2], otr->GrdLvl) ]);
 
    if( (dir == 1) && (buc->pos[0] < otr->NmbBuc-1) )
-      return(&otr->grd[ (buc->pos[0]+1) * POW(otr->NmbBuc)
-            + buc->pos[1] * otr->NmbBuc + buc->pos[2] ]);
+      return(&otr->grd[ BUC(buc->pos[0]+1, buc->pos[1], buc->pos[2], otr->GrdLvl) ]);
 
    if( (dir == 2) && (buc->pos[1] > 0) )
-      return(&otr->grd[ buc->pos[0] * POW(otr->NmbBuc)
-            + (buc->pos[1]-1) * otr->NmbBuc + buc->pos[2] ]);
+      return(&otr->grd[ BUC(buc->pos[0], buc->pos[1]-1, buc->pos[2], otr->GrdLvl) ]);
 
    if( (dir == 3) && (buc->pos[1] < otr->NmbBuc-1) )
-      return(&otr->grd[ buc->pos[0] * POW(otr->NmbBuc)
-            + (buc->pos[1]+1) * otr->NmbBuc + buc->pos[2] ]);
+      return(&otr->grd[ BUC(buc->pos[0], buc->pos[1]+1, buc->pos[2], otr->GrdLvl) ]);
 
    if( (dir == 4) && (buc->pos[2] > 0) )
-      return(&otr->grd[ buc->pos[0] * POW(otr->NmbBuc)
-            + buc->pos[1] * otr->NmbBuc + buc->pos[2]-1 ]);
+      return(&otr->grd[ BUC(buc->pos[0], buc->pos[1], buc->pos[2]-1, otr->GrdLvl) ]);
 
    if( (dir == 5) && (buc->pos[2] < otr->NmbBuc-1) )
-      return(&otr->grd[ buc->pos[0] * POW(otr->NmbBuc)
-            + buc->pos[1] * otr->NmbBuc + buc->pos[2]+1 ]);
+      return(&otr->grd[ BUC(buc->pos[0], buc->pos[1], buc->pos[2]+1, otr->GrdLvl) ]);
 
    return(NULL);
 }
@@ -1255,52 +1253,68 @@ static void GetOctLnk(  MshSct *msh, itg typ, fpn VerCrd[3], itg *MinItm,
       // between its linked enities and the vertex
       do
       {
+         // Move to the next item if this one is not of the required type
          if(lnk->typ != typ)
             continue;
 
+         // Call the user's filter if present
+         if(UsrPrc && !UsrPrc(UsrDat, lnk->idx))
+            continue;
+
          if(lnk->typ == LolTypVer)
+         {
+            // Compute the square of the distance between the searched position
+            // and the vertex from the user's table
             CurDis = DisPow(VerCrd, (fpn *)GetPtrItm(msh, LolTypVer, lnk->idx));
+         }
          else if(lnk->typ == LolTypEdg)
          {
+            // Setup the current edge to the thread local structure in order
+            // to compute the square of the distance from the edge
             SetItm(msh, LolTypEdg, lnk->idx, 0, ThrIdx);
             CurDis = DisVerEdg(VerCrd, &ThrMsh->edg);
          }
          else if(lnk->typ == LolTypTri)
          {
+            // Check whether the distance from the position and this triangle
+            // has not already been compute by a different octant
             if(ThrMsh->TagTab[ lnk->idx ] == ThrMsh->tag)
                continue;
-
-            ThrMsh->TagTab[ lnk->idx ] = ThrMsh->tag;
-
-            if(UsrPrc && !UsrPrc(UsrDat, lnk->idx))
-               continue;
+            else
+               ThrMsh->TagTab[ lnk->idx ] = ThrMsh->tag;
 
 #ifdef WITH_FAST_MODE
+            // In fast mode the triangle is stored in an internel STL buffer
             CurDis = DisVerTriStl(msh, VerCrd, msh->TriCrdTab[ lnk->idx ]);
 #else
+            // Otherwise, we need to install it in the local thread-safe buffer
             SetItm(msh, LolTypTri, lnk->idx, 0, ThrIdx);
             CurDis = DisVerTri(msh, VerCrd, &ThrMsh->tri);
 #endif
          }
          else if(lnk->typ == LolTypQad)
          {
+            // Check whether the distance from the position and this quad
+            // has not already been compute by a different octant
             if(ThrMsh->TagTab[ lnk->idx ] == ThrMsh->tag)
                continue;
+            else
+               ThrMsh->TagTab[ lnk->idx ] = ThrMsh->tag;
 
-            ThrMsh->TagTab[ lnk->idx ] = ThrMsh->tag;
-
-            if(UsrPrc && !UsrPrc(UsrDat, lnk->idx))
-               continue;
-
+            // Setup the current edge to the thread local structure in order
+            // to compute the square of the distance from the quad
             SetItm(msh, LolTypQad, lnk->idx, 0, ThrIdx);
             CurDis = DisVerQad(msh, VerCrd, &ThrMsh->qad);
          }
          else if(lnk->typ == LolTypTet)
          {
+            // Setup the current edge to the thread local structure in order
+            // to compute the square of the distance from the tetra
             SetItm(msh, LolTypTet, lnk->idx, 0, ThrIdx);
             CurDis = DisVerTet(msh, VerCrd, &ThrMsh->tet);
          }
 
+         // Store the minimum distance and entity in the user's variables
          if( (CurDis >= 0.) && (CurDis < *MinDis) )
          {
             *MinItm = lnk->idx;
