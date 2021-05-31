@@ -9,7 +9,7 @@
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   may 20 2021                                        */
+/*    Last modification:   may 31 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -671,7 +671,7 @@ size_t LolFreeOctree(int64_t OctIdx)
 #endif
 
    FreAllMem(otr);
-   memset(otr, 0, sizeof(OtrSct));
+   free(otr);
 
    return(MemUse);
 }
