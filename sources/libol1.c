@@ -9,7 +9,7 @@
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   jun 15 2021                                        */
+/*    Last modification:   jun 16 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -69,10 +69,15 @@ typedef struct
 {
    EdgSct   edg[3];
    VerSct  *ver[3];
-   fpn      nrm[3];
+   fpn      srf, nrm[3];
    itg      idx;
    float    ani;
 }TriSct;
+
+typedef struct
+{
+   fpn      crd[3][3], siz[3], tng[3][3], srf, nrm[3];
+}StlSct;
 
 typedef struct
 {
@@ -147,12 +152,13 @@ typedef struct
 {
    MshThrSct  *thr[ MaxThr ];
    size_t      UsrSiz[ LolNmbTyp ], NmbItm[ LolNmbTyp ];
+   fpn         aniso, eps;
+   itg         BasIdx, StlMod;
+   char       *UsrPtr[ LolNmbTyp ];
+   StlSct     *StlTab;
 #ifdef WITH_PROFILING
    int64_t     CptOct, CptBuc, CptTri;
 #endif
-   fpn         aniso, eps, (*TriCrdTab)[4][3];
-   itg         BasIdx, StlMod;
-   char       *UsrPtr[ LolNmbTyp ];
 }MshSct;
 
 typedef struct OctSctPtr
@@ -243,6 +249,7 @@ static fpn     DisVerTet   (MshSct *, fpn *, TetSct *);
 static fpn     GetTriSrf   (TriSct *);
 static fpn     GetVolTet   (TetSct *);
 static fpn     DisVerEdg   (fpn *, EdgSct *);
+static fpn     DisVerEdgStl(fpn *, fpn *, fpn *, fpn *, fpn);
 static void    GetTriVec   (TriSct *, fpn *);
 static void    SetTriNrm   (TriSct *);
 static void    SetTmpHex   (HexSct *, fpn *, fpn *);
@@ -259,7 +266,7 @@ static itg     VerInsEdg   (EdgSct *, VerSct *, fpn);
 static void    SetEdgTng   (EdgSct *);
 static fpn     GetTriAni   (TriSct *);
 #ifdef WITH_FAST_MODE
-static fpn     DisVerTriStl(MshSct *, fpn *, fpn (*)[3]);
+static fpn     DisVerTriStl(MshSct *, fpn *, StlSct *);
 #endif
 
 
@@ -565,7 +572,7 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
    {
       // Allocate an STL-like table to store
       // the triangle's nodes coordinates and their normal
-      msh->TriCrdTab = NewMem(otr, (msh->NmbItm[ LolTypTri ] + 1) * 12 * sizeof(fpn));
+      msh->StlTab = NewMem(otr, (msh->NmbItm[ LolTypTri ] + 1) * sizeof(StlSct));
       MshThr = msh->thr[0];
 
       for(i=0;i<msh->NmbItm[ LolTypTri ];i++)
@@ -575,10 +582,17 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
 
          // Copy the triangle's nodes coordinates and its normal
          // to the STL-like table for faster distance calculation
-         CpyVec(MshThr->tri.ver[0]->crd, msh->TriCrdTab[i+1][0]);
-         CpyVec(MshThr->tri.ver[1]->crd, msh->TriCrdTab[i+1][1]);
-         CpyVec(MshThr->tri.ver[2]->crd, msh->TriCrdTab[i+1][2]);
-         CpyVec(MshThr->tri.nrm,         msh->TriCrdTab[i+1][3]);
+         CpyVec(MshThr->tri.ver[0]->crd, msh->StlTab[i+1].crd[0]);
+         CpyVec(MshThr->tri.ver[1]->crd, msh->StlTab[i+1].crd[1]);
+         CpyVec(MshThr->tri.ver[2]->crd, msh->StlTab[i+1].crd[2]);
+         CpyVec(MshThr->tri.nrm,         msh->StlTab[i+1].nrm);
+         CpyVec(MshThr->tri.edg[0].tng,  msh->StlTab[i+1].tng[0]);
+         CpyVec(MshThr->tri.edg[1].tng,  msh->StlTab[i+1].tng[1]);
+         CpyVec(MshThr->tri.edg[2].tng,  msh->StlTab[i+1].tng[2]);
+         msh->StlTab[i+1].siz[0] = MshThr->tri.edg[0].siz;
+         msh->StlTab[i+1].siz[1] = MshThr->tri.edg[1].siz;
+         msh->StlTab[i+1].siz[2] = MshThr->tri.edg[2].siz;
+         msh->StlTab[i+1].srf = MshThr->tri.srf;
       }
    }
 #else
@@ -1265,7 +1279,7 @@ static void GetOctLnk(  MshSct *msh, itg typ, fpn VerCrd[3], itg *MinItm,
 
 #ifdef WITH_FAST_MODE
             // In fast mode the triangle is stored in an internel STL buffer
-            CurDis = DisVerTriStl(msh, VerCrd, msh->TriCrdTab[ lnk->idx ]);
+            CurDis = DisVerTriStl(msh, VerCrd, &msh->StlTab[ lnk->idx ]);
 #else
             // Otherwise, we need to install it in the local thread-safe buffer
             SetItm(msh, LolTypTri, lnk->idx, 0, ThrIdx);
@@ -2683,46 +2697,87 @@ static itg VerInsEdg(EdgSct *edg, VerSct *ver, fpn eps)
 
 static fpn DisVerTri(MshSct *msh, fpn VerCrd[3], TriSct *tri)
 {
-   fpn ImgCrd[3], TmpCrd[3], u[3], v[3], w[3], nrm[3], SubVol[3], TotVol;
+   itg      i, *IdxTab, cod = 0, inc = 1;
+   fpn      dis1, dis2, TriSrf, SubSrf, TotSrf=0.;
+   VerSct   img, TriVer[3];
+   EdgSct   edg;
+   TriSct   SubTri;
 
 #ifdef WITH_PROFILING
    msh->CptTri++;
 #endif
 
-   if( (tri->nrm[0] == 0.) && (tri->nrm[1] == 0.) && (tri->nrm[2] == 0.) )
-      return(-1.);
+   // Compute the triangle's normal and surface
+   // and project the coordinates on its plane
+   GetTriVec(tri, tri->nrm);
 
-   // Project the vertex on the triangle's plane
-   PrjVerPla(VerCrd, tri->ver[0]->crd, tri->nrm, ImgCrd);
+   if((TriSrf = GetNrmVec(tri->nrm)))
+      MulVec1(1./TriSrf, tri->nrm);
 
-   // Compute the vectors stemming from the projection to the triangle's nodes
-   SubVec3(tri->ver[0]->crd, ImgCrd, u);
-   SubVec3(tri->ver[1]->crd, ImgCrd, v);
-   SubVec3(tri->ver[2]->crd, ImgCrd, w);
+   SubTri.ver[2] = &img;
+   dis1 = PrjVerPla(VerCrd, tri->ver[0]->crd, tri->nrm, img.crd);
 
-   // Compute the three tets' volumes
-   CrsPrd(v, w, nrm);
-   SubVol[0] = -DotPrd(nrm, tri->nrm);
-   SubVol[0] = MAX(SubVol[0], 0.);
+   // Compute the barycentric coordinates and check the projection's position
+   for(i=0;i<3;i++)
+   {
+      SubTri.ver[0] = tri->ver[ (i+1)%3 ];
+      SubTri.ver[1] = tri->ver[ (i+2)%3 ];
 
-   CrsPrd(w, u, nrm);
-   SubVol[1] = -DotPrd(nrm, tri->nrm);
-   SubVol[1] = MAX(SubVol[1], 0.);
+      GetTriVec(&SubTri, SubTri.nrm);
+      SubSrf = GetNrmVec(SubTri.nrm);
+      TotSrf += SubSrf;
 
-   CrsPrd(u, v, nrm);
-   SubVol[2] = -DotPrd(nrm, tri->nrm);
-   SubVol[2] = MAX(SubVol[2], 0.);
+      if(DotPrd(SubTri.nrm, tri->nrm) < 0.)
+         cod |= inc;
 
-   // Compute the closest position with the barycentric coordinates
-   TotVol = SubVol[0] + SubVol[1] + SubVol[2];
-   MulVec2(SubVol[0] / TotVol, tri->ver[0]->crd, ImgCrd);
-   MulVec2(SubVol[1] / TotVol, tri->ver[1]->crd, TmpCrd);
-   AddVec2(TmpCrd, ImgCrd);
-   MulVec2(SubVol[2] / TotVol, tri->ver[2]->crd, TmpCrd);
-   AddVec2(TmpCrd, ImgCrd);
+      inc = inc << 1;
+   }
 
-   // Return the square of the distance
-   return(DisPow(VerCrd, ImgCrd));
+   // If the sum of the sub triangles surfaces is equal
+   // to the main triangle's one, the projection lies inside the triangle
+   if( (TotSrf - TriSrf) < .00001 * (TotSrf + TriSrf))
+      return(POW(dis1));
+
+   // Otherwise, compute the distance between an edge
+   // or a vertex depending on the position code
+   switch(cod)
+   {
+      // Facing edge 0 (1-2) or the barycentric coordinates are degenerate
+      case 0 : case 1 :
+      {
+         edg.ver[0] = tri->ver[1];
+         edg.ver[1] = tri->ver[2];
+         SetEdgTng(&edg);
+         return(DisVerEdg(VerCrd, &edg));
+      }
+
+      // Facing edge 1 (2-0)
+      case 2 :
+      {
+         edg.ver[0] = tri->ver[2];
+         edg.ver[1] = tri->ver[0];
+         SetEdgTng(&edg);
+         return(DisVerEdg(VerCrd, &edg));
+      }
+
+      // Facing vertex 2
+      case 3 : return(DisPow(VerCrd, tri->ver[2]->crd));
+
+      // Facing edge 2 (0-1)
+      case 4 :
+      {
+         edg.ver[0] = tri->ver[0];
+         edg.ver[1] = tri->ver[1];
+         SetEdgTng(&edg);
+         return(DisVerEdg(VerCrd, &edg));
+      }
+
+      // Facing vertex 1
+      case 5 : return(DisPow(VerCrd, tri->ver[1]->crd));
+
+      // Facing vertex 0
+      default : case 6 : return(DisPow(VerCrd, tri->ver[0]->crd));
+   }
 }
 
 
@@ -2731,48 +2786,81 @@ static fpn DisVerTri(MshSct *msh, fpn VerCrd[3], TriSct *tri)
 /*----------------------------------------------------------------------------*/
 
 #ifdef WITH_FAST_MODE
-static fpn DisVerTriStl(MshSct *msh, fpn VerCrd[3], fpn TriCrd[4][3])
+static fpn DisVerTriStl(MshSct *msh, fpn VerCrd[3], StlSct *stl)
 {
-   fpn ImgCrd[3], TmpCrd[3], u[3], v[3], w[3], nrm[3], SubVol[3], TotVol;
+   itg      i, *IdxTab, cod = 0;
+   fpn      dis1, dis2, SubSrf, ImgCrd[3], u[3], v[3], w[3], n[3][3], TotSrf;
 
 #ifdef WITH_PROFILING
    msh->CptTri++;
 #endif
 
-   if( (TriCrd[3][0] == 0.) && (TriCrd[3][1] == 0.) && (TriCrd[3][2] == 0.) )
+   if(stl->srf == 0.)
       return(-1.);
 
-   // Project the vertex on the triangle's plane
-   PrjVerPla(VerCrd, TriCrd[0], TriCrd[3], ImgCrd);
+   // Project the coordinates on its plane
+   dis1 = PrjVerPla(VerCrd, stl->crd[0], stl->nrm, ImgCrd);
 
    // Compute the vectors stemming from the projection to the triangle's nodes
-   SubVec3(TriCrd[0], ImgCrd, u);
-   SubVec3(TriCrd[1], ImgCrd, v);
-   SubVec3(TriCrd[2], ImgCrd, w);
+   SubVec3(stl->crd[0], ImgCrd, u);
+   SubVec3(stl->crd[1], ImgCrd, v);
+   SubVec3(stl->crd[2], ImgCrd, w);
 
    // Compute the three tets' volumes
-   CrsPrd(w, v, nrm);
-   SubVol[0] = DotPrd(nrm, TriCrd[3]);
-   SubVol[0] = MAX(SubVol[0], 0.);
+   CrsPrd(w, v, n[0]);
+   CrsPrd(u, w, n[1]);
+   CrsPrd(v, u, n[2]);
 
-   CrsPrd(u, w, nrm);
-   SubVol[1] = DotPrd(nrm, TriCrd[3]);
-   SubVol[1] = MAX(SubVol[1], 0.);
+   if(DotPrd(n[0], stl->nrm) < 0.)
+      cod |= 1;
 
-   CrsPrd(v, u, nrm);
-   SubVol[2] = DotPrd(nrm, TriCrd[3]);
-   SubVol[2] = MAX(SubVol[2], 0.);
+   if(DotPrd(n[1], stl->nrm) < 0.)
+      cod |= 2;
 
-   // Compute the closest position with the barycentric coordinates
-   TotVol = SubVol[0] + SubVol[1] + SubVol[2];
-   MulVec2(SubVol[0] / TotVol, TriCrd[0], ImgCrd);
-   MulVec2(SubVol[1] / TotVol, TriCrd[1], TmpCrd);
-   AddVec2(TmpCrd, ImgCrd);
-   MulVec2(SubVol[2] / TotVol, TriCrd[2], TmpCrd);
-   AddVec2(TmpCrd, ImgCrd);
+   if(DotPrd(n[2], stl->nrm) < 0.)
+      cod |= 4;
 
-   // Return the square of the distance
-   return(DisPow(VerCrd, ImgCrd));
+   TotSrf = GetNrmVec(n[0]) + GetNrmVec(n[1]) + GetNrmVec(n[2]);
+
+   // If the sum of the sub triangles surfaces is equal
+   // to the main triangle's one, the projection lies inside the triangle
+   if( (TotSrf - stl->srf) < .00001 * (TotSrf + stl->srf))
+      return(POW(dis1));
+
+   // Otherwise, compute the distance between an edge
+   // or a vertex depending on the position code
+   switch(cod)
+   {
+      // Facing edge 0 (1-2) or the barycentric coordinates are degenerate
+      case 0 : case 1 :
+      {
+         return(DisVerEdgStl( VerCrd, stl->crd[1], stl->crd[2],
+                              stl->tng[0], stl->siz[0]) );
+      }
+
+      // Facing edge 1 (2-0)
+      case 2 :
+      {
+         return(DisVerEdgStl( VerCrd, stl->crd[2], stl->crd[0],
+                              stl->tng[1], stl->siz[1]) );
+      }
+
+      // Facing vertex 2
+      case 3 : return(DisPow(VerCrd, stl->crd[2]));
+
+      // Facing edge 2 (0-1)
+      case 4 :
+      {
+         return(DisVerEdgStl( VerCrd, stl->crd[0], stl->crd[1],
+                              stl->tng[2], stl->siz[2]) );
+      }
+
+      // Facing vertex 1
+      case 5 : return(DisPow(VerCrd, stl->crd[1]));
+
+      // Facing vertex 0
+      default : case 6 : return(DisPow(VerCrd, stl->crd[0]));
+   }
 }
 #endif
 
@@ -2880,6 +2968,27 @@ static fpn DisVerEdg(fpn VerCrd[3], EdgSct *edg)
 
 
 /*----------------------------------------------------------------------------*/
+/* Compute the distance between a vertex and an edge                          */
+/*----------------------------------------------------------------------------*/
+
+static fpn DisVerEdgStl(fpn VerCrd[3], fpn *crd0, fpn *crd1, fpn *tng, fpn siz)
+{
+   fpn dis0, dis1, ImgCrd[3], TotSiz = 0.;
+
+   PrjVerLin(VerCrd, crd0, tng, ImgCrd);
+   TotSiz = dis(crd0, ImgCrd) + dis(crd1, ImgCrd);
+
+   if( (TotSiz - siz) < .00001 * (TotSiz + siz))
+      return(DisPow(VerCrd, ImgCrd));
+
+   dis0 = DisPow(VerCrd, crd0);
+   dis1 = DisPow(VerCrd, crd1);
+
+   return(MIN(dis0, dis1));
+}
+
+
+/*----------------------------------------------------------------------------*/
 /* Compute the triangle's normal vector                                       */
 /*----------------------------------------------------------------------------*/
 
@@ -2900,16 +3009,14 @@ static void GetTriVec(TriSct *tri, fpn w[3])
 
 static void SetTriNrm(TriSct *tri)
 {
-   fpn siz;
-
    // Compute the cross-product vector, chack and normalize it
    GetTriVec(tri, tri->nrm);
-   siz = GetNrmVec(tri->nrm);
+   tri->srf = GetNrmVec(tri->nrm);
 
-   if(fpclassify(siz) == FP_ZERO)
+   if(fpclassify(tri->srf) == FP_ZERO)
       ClrVec(tri->nrm);
    else
-      MulVec1(1./siz, tri->nrm);
+      MulVec1(1./tri->srf, tri->nrm);
 }
 
 

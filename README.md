@@ -1,6 +1,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## libOL version 1.73
+## libOL version 1.77
 Quick and easy spatial localization with _octree_
 
 ## Overview
