@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.74                         */
+/*                      LIB OCTREE LOCALISATION V1.78                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   may 04 2021                                        */
+/*    Last modification:   jun 22 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -74,7 +74,8 @@ itg     LolGetBoundingBox  (int64_t , itg , itg, itg *, fpn *, fpn *, itg);
 itg     LolGetNearest      (int64_t, itg, fpn *, fpn *, fpn, itg (void *, itg),
                             void * , itg);
 itg     LolIntersectSurface(int64_t, fpn *, fpn *, fpn *,
-                            fpn, itg (void *, itg), void *, itg );
+                            fpn, itg (void *, itg), void *, itg);
+itg     LolIsInside        (int64_t, fpn *, fpn *, itg);
 itg     LolProjectVertex   (int64_t, fpn *, itg, itg, fpn *, itg);
 
 #ifdef __cplusplus

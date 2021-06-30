@@ -1,6 +1,4 @@
 ### HIGH PRIORITY
-- add a packed-vertex GetNearest() that would process a group of geometrically close vertices in one go
-
 
 ### STANDARD PRIORITY
 - reserve keywords and data structures for hybrid and 2nd order elements

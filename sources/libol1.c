@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.77                         */
+/*                      LIB OCTREE LOCALISATION V1.78                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   jun 16 2021                                        */
+/*    Last modification:   jun 24 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -41,6 +41,7 @@
 #define TngFlg       1
 #define AniFlg       2
 #define MaxThr       256
+#define MaxRayTri    100
 #define MIN(a,b)     ((a) < (b) ? (a) : (b))
 #define MAX(a,b)     ((a) > (b) ? (a) : (b))
 #define POW(a)       ((a)*(a))
@@ -223,9 +224,11 @@ static void    SetItm      (MshSct *, itg, itg, itg, itg);
 static void    SetSonCrd   (itg, fpn *, fpn *, fpn *, fpn *);
 static void    GetOctLnk   (MshSct *, itg, fpn *, itg *, fpn *, OctSct *,
                            fpn *, fpn *, itg (void *, itg),  void *, itg);
-static void    IntRayOct   (OtrSct *, MshSct *, fpn *, fpn *, itg *, fpn *,
+static void    IntLinOct   (OtrSct *, MshSct *, fpn *, fpn *, itg *, fpn *,
                             OctSct *, fpn *, fpn *, itg (void *, itg),
                             void *, itg);
+static void    IntVecOct   (OtrSct *, MshSct *, fpn *, fpn *, itg *, itg *,
+                            OctSct *, fpn *, fpn *, itg);
 static void    GetBucBox   (OtrSct *, BucSct *, fpn *, fpn *);
 static BucSct *GetBucNgb   (OtrSct *, BucSct *, itg);
 static fpn     DisVerOct   (fpn *, fpn *, fpn *);
@@ -957,7 +960,7 @@ itg LolIntersectSurface(int64_t OctIdx, fpn *VerCrd, fpn *VerTng, fpn *MinDis,
    {
       buc = stk[ out++ ];
       GetBucBox(  otr, buc, MinCrd, MaxCrd);
-      IntRayOct(  otr, msh, VerCrd, VerTng, &MinItm, MinDis, buc->oct,
+      IntLinOct(  otr, msh, VerCrd, VerTng, &MinItm, MinDis, buc->oct,
                   MinCrd, MaxCrd, UsrPrc, UsrDat, ThrIdx );
 
       // Push unprocessed neighbours intersected by the line
@@ -983,6 +986,73 @@ itg LolIntersectSurface(int64_t OctIdx, fpn *VerCrd, fpn *VerTng, fpn *MinDis,
    *MinDis = sqrt(*MinDis);
 
    return(MinItm);
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* Check if a point is inside or outside the geometry                         */
+/* based on the number vector-triangle intersections                          */
+/*----------------------------------------------------------------------------*/
+
+itg LolIsInside(int64_t OctIdx, fpn *VerCrd, fpn *VerTng, itg ThrIdx)
+{
+   OtrSct     *otr = (OtrSct *)OctIdx;
+   OtrThrSct  *ThrOct = otr->thr[ ThrIdx ];
+   MshThrSct  *ThrMsh = otr->msh->thr[ ThrIdx ];
+   itg         i, ins=0, out=0, ini[3], *tag, len;
+   itg         NmbTri = 0, TriTab[ MaxRayTri ];
+   fpn         MinCrd[3], MaxCrd[3];
+   MshSct     *msh = otr->msh;
+   BucSct     *IniBuc, *buc, *ngb, **stk;
+
+   ThrOct->tag++;
+   ThrMsh->tag = ThrOct->tag;
+   tag = ThrOct->ThrTag;
+   stk = ThrOct->ThrStk;
+   len = otr->NmbBuc;
+
+   // Get the vertex's integer coordinates in the grid
+   // and clip it if it stands outside the bounding box
+   for(i=0;i<3;i++)
+   {
+      ini[i] = (VerCrd[i] - otr->bnd[0][i]) / otr->BucSiz;
+      ini[i] = MAX(0, ini[i]);
+      ini[i] = MIN(otr->NmbBuc-1, ini[i]);
+   }
+
+   IniBuc = &otr->grd[ BUC(ini[0], ini[1], ini[2],otr->GrdLvl) ];
+
+   // Push the octant containing the starting point on the lifo stack
+   stk[ ins++ ] = IniBuc;
+   tag[ IniBuc->idx ] = ThrOct->tag;
+
+   // Flood fill processing of the grid : 
+   // check octant's contents distance against the closest item
+   while(ins > out)
+   {
+      buc = stk[ out++ ];
+      GetBucBox(  otr, buc, MinCrd, MaxCrd);
+      IntVecOct(  otr, msh, VerCrd, VerTng, &NmbTri, TriTab,
+                  buc->oct, MinCrd, MaxCrd, ThrIdx );
+
+      // Push unprocessed neighbours intersected by the line
+      // on the stack as long as they are not too far
+      for(i=0;i<6;i++)
+      {
+         if( !(ngb = GetBucNgb(otr, buc, i)) || (tag[ ngb->idx ] == ThrOct->tag) )
+            continue;
+
+         GetBucBox(otr, ngb, MinCrd, MaxCrd);
+
+         if(!LinIntBox(VerCrd, VerTng, MinCrd, MaxCrd, otr->eps))
+            continue;
+
+         stk[ ins++ ] = ngb;
+         tag[ ngb->idx ] = ThrOct->tag;
+      }
+   }
+
+   return(NmbTri);
 }
 
 
@@ -1348,7 +1418,7 @@ static void CpyOctCrd(OctSct *oct, fpn MinCrd[3], fpn MaxCrd[3])
 /* Search for the nearest triangle instersected by a line                     */
 /*----------------------------------------------------------------------------*/
 
-static void IntRayOct(  OtrSct *otr, MshSct *msh, fpn *crd, fpn *tng,
+static void IntLinOct(  OtrSct *otr, MshSct *msh, fpn *crd, fpn *tng,
                         itg *MinItm, fpn *MinDis, OctSct *oct, fpn MinCrd[3],
                         fpn MaxCrd[3], itg (UsrPrc)(void *, itg), void *UsrDat,
                         itg ThrIdx )
@@ -1371,7 +1441,7 @@ static void IntRayOct(  OtrSct *otr, MshSct *msh, fpn *crd, fpn *tng,
          if(!LinIntBox(crd, tng, SonMin, SonMax, msh->eps))
             continue;
 
-         IntRayOct(  otr, msh, crd, tng, MinItm, MinDis, oct->son+i,
+         IntLinOct(  otr, msh, crd, tng, MinItm, MinDis, oct->son+i,
                      SonMin, SonMax, UsrPrc, UsrDat, ThrIdx );
       }
    }
@@ -1408,6 +1478,69 @@ static void IntRayOct(  OtrSct *otr, MshSct *msh, fpn *crd, fpn *tng,
                   *MinDis = CurDis;
                }
             }
+         }
+      }while((lnk = lnk->nex));
+   }
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* Search for the nearest triangle instersected by a line                     */
+/*----------------------------------------------------------------------------*/
+
+static void IntVecOct(  OtrSct *otr, MshSct *msh, fpn *crd, fpn *tng,
+                        itg *NmbTri, itg *TriTab, OctSct *oct, fpn MinCrd[3],
+                        fpn MaxCrd[3], itg ThrIdx )
+{
+   itg         i;
+   fpn         CurDis, SonMin[3], SonMax[3], vec[3];
+   VerSct      IntVer;
+   LnkSct     *lnk;
+   MshThrSct  *ThrMsh = otr->msh->thr[ ThrIdx ];
+
+   if(oct->sub)
+   {
+      // Check each sons recursively as long as the minimum distance
+      // between the vertex and the octant is lower than
+      // the current distance from the closest entity
+      for(i=0;i<8;i++)
+      {
+         SetSonCrd(i, SonMin, SonMax, MinCrd, MaxCrd);
+
+         if(!LinIntBox(crd, tng, SonMin, SonMax, msh->eps))
+            continue;
+
+         IntVecOct(  otr, msh, crd, tng, NmbTri, TriTab,
+                     oct->son+i, SonMin, SonMax, ThrIdx );
+      }
+   }
+   else if((lnk = oct->lnk))
+   {
+      // When a leaf octant is reached, compute the intersection
+      // between its linked triangles and the line
+      do
+      {
+         if(lnk->typ != LolTypTri)
+            continue;
+
+         if(ThrMsh->TagTab[ lnk->idx ] == ThrMsh->tag)
+            continue;
+
+         ThrMsh->TagTab[ lnk->idx ] = ThrMsh->tag;
+         SetItm(msh, LolTypTri, lnk->idx, 0, ThrIdx);
+
+         if(DotPrd(tng, ThrMsh->tri.nrm) != 0.)
+         {
+            LinIntPla(  crd, tng, ThrMsh->tri.ver[0]->crd,
+                        ThrMsh->tri.nrm, IntVer.crd );
+
+            if(!VerInsTri(&ThrMsh->tri, &IntVer, msh->eps))
+               continue;
+
+            SubVec3(crd, IntVer.crd, vec);
+
+            if( (*NmbTri < MaxRayTri) && (DotPrd(tng, vec) > 0.) )
+               TriTab[ (*NmbTri)++ ] = lnk->idx;
          }
       }while((lnk = lnk->nex));
    }
@@ -3013,10 +3146,17 @@ static void SetTriNrm(TriSct *tri)
    GetTriVec(tri, tri->nrm);
    tri->srf = GetNrmVec(tri->nrm);
 
+#if __STDC_VERSION__ >= 199901L
    if(fpclassify(tri->srf) == FP_ZERO)
       ClrVec(tri->nrm);
    else
       MulVec1(1./tri->srf, tri->nrm);
+#else
+   if(tri->srf == 0.)
+      ClrVec(tri->nrm);
+   else
+      MulVec1(1./tri->srf, tri->nrm);
+#endif
 }
 
 
