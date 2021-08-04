@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.78                         */
+/*                      LIB OCTREE LOCALISATION V1.79                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   jun 24 2021                                        */
+/*    Last modification:   jul 16 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -239,6 +239,8 @@ static void    RstMshItm   (MshSct *);
 #ifdef WITH_FAST_MODE
 static void    CpyOctCrd   (OctSct *, fpn *, fpn *);
 #endif
+static void    ChkTriIntTri(OtrSct *, OctSct *, itg *, itg, itg *);
+
 
 
 /*----------------------------------------------------------------------------*/
@@ -718,7 +720,109 @@ itg LolGetBoundingBox(  int64_t OctIdx, itg typ, itg MaxItm, itg *ItmTab,
 
 
 /*----------------------------------------------------------------------------*/
-/* Recusrsive coordinates search                                              */
+/* Search the octree for mesh entities included in this box                   */
+/*----------------------------------------------------------------------------*/
+
+itg LolCheckIntersections(int64_t OctIdx, itg MaxItm, itg *ItmTab)
+{
+   itg      NmbItm = 0;
+   OtrSct   *otr = (OtrSct *)OctIdx;
+
+   ChkTriIntTri(otr, &otr->oct, &NmbItm, MaxItm, ItmTab);
+
+   return(NmbItm);
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* Recusrsive box search                                                      */
+/*----------------------------------------------------------------------------*/
+
+static void ChkTriIntTri(  OtrSct *otr, OctSct *oct, itg *NmbItm,
+                           itg MaxItm, itg *ItmTab)
+{
+   itg         i, j, NmbTri = 0, *IdxTab;
+   LnkSct      *lnk;
+   VerSct      IntVer, VerTab[ 3 * MaxItmOct * 10 ];
+   TriSct      *tri, TriTab[ MaxItmOct * 10];
+   MshThrSct   *ThrMsh = otr->msh->thr[0];
+
+   if(oct->sub)
+   {
+      for(i=0;i<8;i++)
+         ChkTriIntTri(otr, oct->son+i, NmbItm, MaxItm, ItmTab);
+   }
+   else if((lnk = oct->lnk) && (*NmbItm < MaxItm) )
+   {
+      do
+      {
+         if(lnk->typ == LolTypTri)
+         {
+            SetItm(otr->msh, LolTypTri, lnk->idx, TngFlg, 0);
+
+            tri = &TriTab[ NmbTri ];
+            tri->idx = lnk->idx;
+            CpyVec(ThrMsh->tri.nrm, tri->nrm);
+            tri->srf = ThrMsh->tri.srf;
+            IdxTab = (itg *)GetPtrItm(otr->msh, LolTypTri, lnk->idx);
+
+            for(i=0;i<3;i++)
+            {
+               tri->ver[i] = &VerTab[ 3 * NmbTri + i ];
+               tri->ver[i]->idx = IdxTab[i];
+               CpyVec(ThrMsh->ver[i].crd, tri->ver[i]->crd);
+            }
+
+            for(i=0;i<3;i++)
+            {
+               tri->edg[i].ver[0] = tri->ver[ (i+1)%3 ];
+               tri->edg[i].ver[1] = tri->ver[ (i+2)%3 ];
+               CpyVec(ThrMsh->tri.edg[i].tng, tri->edg[i].tng);
+               tri->edg[i].siz = ThrMsh->tri.edg[i].siz;
+            }
+
+            NmbTri++;
+         }
+      }while((lnk = lnk->nex));
+
+      for(i=0;i<NmbTri;i++)
+      {
+         for(j=0;j<NmbTri;j++)
+         {
+            if( (TriTab[i].ver[0]->idx == TriTab[j].ver[0]->idx)
+            ||  (TriTab[i].ver[0]->idx == TriTab[j].ver[1]->idx)
+            ||  (TriTab[i].ver[0]->idx == TriTab[j].ver[2]->idx)
+            ||  (TriTab[i].ver[1]->idx == TriTab[j].ver[0]->idx)
+            ||  (TriTab[i].ver[1]->idx == TriTab[j].ver[1]->idx)
+            ||  (TriTab[i].ver[1]->idx == TriTab[j].ver[2]->idx)
+            ||  (TriTab[i].ver[2]->idx == TriTab[j].ver[0]->idx)
+            ||  (TriTab[i].ver[2]->idx == TriTab[j].ver[1]->idx)
+            ||  (TriTab[i].ver[2]->idx == TriTab[j].ver[2]->idx))
+            {
+               continue;
+            }
+
+
+            if(EdgIntTri(&TriTab[i], &TriTab[j].edg[0], &IntVer, otr->eps)
+            || EdgIntTri(&TriTab[i], &TriTab[j].edg[1], &IntVer, otr->eps)
+            || EdgIntTri(&TriTab[i], &TriTab[j].edg[2], &IntVer, otr->eps))
+            {
+               ItmTab[ *NmbItm ] = TriTab[i].idx;
+               (*NmbItm)++;
+
+               if(*NmbItm >= MaxItm)
+                  return;
+
+               break;
+            }
+         }
+      }
+   }
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* Recursive coordinates search                                               */
 /*----------------------------------------------------------------------------*/
 
 static OctSct *GetCrd(  OctSct *oct, itg MaxLvl, fpn VerCrd[3],
