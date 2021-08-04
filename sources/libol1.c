@@ -9,7 +9,7 @@
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   jul 16 2021                                        */
+/*    Last modification:   aug 04 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -431,7 +431,7 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
    msh->eps = otr->eps;
 
    // Set the grid size depending on the number of entities in the mesh
-   otr->GrdLvl = log(TotItmCnt / ItmPerBuc) / (3 * log(2));
+   otr->GrdLvl = (int)(log(TotItmCnt / ItmPerBuc) / (3 * log(2)));
    otr->NmbBuc = 1 << otr->GrdLvl;
    otr->grd    = NewMem(otr, CUB(otr->NmbBuc) * sizeof(BucSct));
    otr->NmbThr = NmbThr;
@@ -978,7 +978,7 @@ itg LolGetNearest(int64_t OctIdx, itg typ, fpn *VerCrd, fpn *MinDis, fpn MaxDis,
    // and clip it if it stands outside the bounding box
    for(i=0;i<3;i++)
    {
-      ini[i] = (VerCrd[i] - otr->bnd[0][i]) / otr->BucSiz;
+      ini[i] = (int)((VerCrd[i] - otr->bnd[0][i]) / otr->BucSiz);
       ini[i] = MAX(0, ini[i]);
       ini[i] = MIN(len-1, ini[i]);
    }
@@ -1047,7 +1047,7 @@ itg LolIntersectSurface(int64_t OctIdx, fpn *VerCrd, fpn *VerTng, fpn *MinDis,
    // and clip it if it stands outside the bounding box
    for(i=0;i<3;i++)
    {
-      ini[i] = (VerCrd[i] - otr->bnd[0][i]) / otr->BucSiz;
+      ini[i] = (int)((VerCrd[i] - otr->bnd[0][i]) / otr->BucSiz);
       ini[i] = MAX(0, ini[i]);
       ini[i] = MIN(otr->NmbBuc-1, ini[i]);
    }
@@ -1119,7 +1119,7 @@ itg LolIsInside(int64_t OctIdx, fpn *VerCrd, fpn *VerTng, itg ThrIdx)
    // and clip it if it stands outside the bounding box
    for(i=0;i<3;i++)
    {
-      ini[i] = (VerCrd[i] - otr->bnd[0][i]) / otr->BucSiz;
+      ini[i] = (int)((VerCrd[i] - otr->bnd[0][i]) / otr->BucSiz);
       ini[i] = MAX(0, ini[i]);
       ini[i] = MIN(otr->NmbBuc-1, ini[i]);
    }
@@ -1597,7 +1597,7 @@ static void IntVecOct(  OtrSct *otr, MshSct *msh, fpn *crd, fpn *tng,
                         fpn MaxCrd[3], itg ThrIdx )
 {
    itg         i;
-   fpn         CurDis, SonMin[3], SonMax[3], vec[3];
+   fpn         SonMin[3], SonMax[3], vec[3];
    VerSct      IntVer;
    LnkSct     *lnk;
    MshThrSct  *ThrMsh = otr->msh->thr[ ThrIdx ];
@@ -1707,7 +1707,7 @@ static void SetItm(MshSct *msh, itg typ, itg idx, itg flg, itg ThrIdx)
 
       // Compute the aspect ratio on demand
       if(flg & AniFlg)
-         ThrMsh->tri.ani = GetTriAni(&ThrMsh->tri);
+         ThrMsh->tri.ani = (float)GetTriAni(&ThrMsh->tri);
    }
    else if(typ == LolTypQad)
    {
@@ -1734,7 +1734,7 @@ static void SetItm(MshSct *msh, itg typ, itg idx, itg flg, itg ThrIdx)
 
          // Compute the aspect ratio on demand
          if(flg & AniFlg)
-            ThrMsh->tri.ani = GetTriAni(&ThrMsh->qad.tri[i]);
+            ThrMsh->tri.ani = (float)GetTriAni(&ThrMsh->qad.tri[i]);
       }
    }
    else if(typ == LolTypTet)
@@ -1949,7 +1949,8 @@ static void AddTri(  MshSct *msh, OtrSct *otr, OctSct *oct,
    }
    else
    {
-      LnkItm(otr, oct, LolTypTri, msh->thr[0]->tri.idx, msh->thr[0]->tri.ani);
+      LnkItm(  otr, oct, LolTypTri, msh->thr[0]->tri.idx,
+               (unsigned char)msh->thr[0]->tri.ani );
 
       if( (oct->lvl < otr->GrdLvl)
       || ((oct->NmbFac >= oct->MaxItm) && (oct->lvl < MaxOctLvl)) )
@@ -2017,7 +2018,8 @@ static void AddTet(  MshSct *msh, OtrSct *otr, OctSct *oct,
    }
    else
    {
-      LnkItm(otr, oct, LolTypTet, msh->thr[0]->tet.idx, msh->thr[0]->tet.ani);
+      LnkItm(  otr, oct, LolTypTet, msh->thr[0]->tet.idx,
+               (unsigned char)msh->thr[0]->tet.ani );
 
       if( (oct->lvl < otr->GrdLvl)
       || ((oct->NmbFac >= oct->MaxItm) && (oct->lvl < MaxOctLvl)) )
@@ -2934,9 +2936,9 @@ static itg VerInsEdg(EdgSct *edg, VerSct *ver, fpn eps)
 
 static fpn DisVerTri(MshSct *msh, fpn VerCrd[3], TriSct *tri)
 {
-   itg      i, *IdxTab, cod = 0, inc = 1;
-   fpn      dis1, dis2, TriSrf, SubSrf, TotSrf=0.;
-   VerSct   img, TriVer[3];
+   itg      i, cod = 0, inc = 1;
+   fpn      dis1, TriSrf, SubSrf, TotSrf=0.;
+   VerSct   img;
    EdgSct   edg;
    TriSct   SubTri;
 
@@ -3505,7 +3507,7 @@ static void AddScaVec2(fpn s, fpn u[3], fpn v[3])
 }
 
 // U = w*U
-static void MulVec1(const fpn w, fpn u[3])
+static void MulVec1(fpn w, fpn u[3])
 {
    u[0] *= w;
    u[1] *= w;

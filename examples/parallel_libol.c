@@ -9,7 +9,7 @@
 /* Description:         Parallel localization on a surface mesh               */
 /* Author:              Loic MARECHAL                                         */
 /* Creation date:       oct 02 2020                                           */
-/* Last modification:   apr 27 2021                                           */
+/* Last modification:   aug 04 2021                                           */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -63,7 +63,7 @@ void ParallelGridSearch(int, int, int, void *);
 
 int main()
 {
-   int i, j, NmbVer, NmbTri, ver, dim, (*TriTab)[3], ref, idx, NmbThr, GrdTyp;
+   int i, j, NmbVer, NmbTri, ver, dim, (*TriTab)[3], ref, NmbThr, GrdTyp;
    int64_t MshIdx, ParIdx;
    double t, mid, siz, avg = 0., (*VerTab)[3], MaxCrd[3];
 
@@ -81,8 +81,8 @@ int main()
      return(1);
    }
 
-   NmbVer = GmfStatKwd(MshIdx, GmfVertices);
-   NmbTri = GmfStatKwd(MshIdx, GmfTriangles);
+   NmbVer = (int)GmfStatKwd(MshIdx, GmfVertices);
+   NmbTri = (int)GmfStatKwd(MshIdx, GmfTriangles);
  
    if( !NmbVer || !NmbTri || (dim != 3) )
    {

@@ -9,7 +9,7 @@
 /* Description:         Basic localization test on a surface mesh             */
 /* Author:              Loic MARECHAL                                         */
 /* Creation date:       mar 16 2012                                           */
-/* Last modification:   dec 14 2020                                           */
+/* Last modification:   aug 04 2021                                           */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -71,11 +71,11 @@ int main()
      return(1);
    }
 
-   NmbVer = GmfStatKwd(MshIdx, GmfVertices);
-   NmbEdg = GmfStatKwd(MshIdx, GmfEdges);
-   NmbTri = GmfStatKwd(MshIdx, GmfTriangles);
-   NmbQad = GmfStatKwd(MshIdx, GmfQuadrilaterals);
-   NmbTet = GmfStatKwd(MshIdx, GmfTetrahedra);
+   NmbVer = (int)GmfStatKwd(MshIdx, GmfVertices);
+   NmbEdg = (int)GmfStatKwd(MshIdx, GmfEdges);
+   NmbTri = (int)GmfStatKwd(MshIdx, GmfTriangles);
+   NmbQad = (int)GmfStatKwd(MshIdx, GmfQuadrilaterals);
+   NmbTet = (int)GmfStatKwd(MshIdx, GmfTetrahedra);
    printf("vertices = %d, edges = %d, triangles = %d, quads = %d, tets = %d, dimension = %d, version = %d\n",
             NmbVer, NmbEdg, NmbTri, NmbQad, NmbTet, dim, ver);
 
