@@ -9,7 +9,7 @@
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   aug 04 2021                                        */
+/*    Last modification:   oct 29 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -35,7 +35,7 @@
 /*----------------------------------------------------------------------------*/
 
 #define MaxItmOct    20
-#define MaxOctLvl    10
+#define MaxOctLvl    255
 #define ItmPerBuc    300
 #define MemBlkSiz    100000
 #define TngFlg       1
@@ -254,7 +254,6 @@ static fpn     DisVerTet   (MshSct *, fpn *, TetSct *);
 static fpn     GetTriSrf   (TriSct *);
 static fpn     GetVolTet   (TetSct *);
 static fpn     DisVerEdg   (fpn *, EdgSct *);
-static fpn     DisVerEdgStl(fpn *, fpn *, fpn *, fpn *, fpn);
 static void    GetTriVec   (TriSct *, fpn *);
 static void    SetTriNrm   (TriSct *);
 static void    SetTmpHex   (HexSct *, fpn *, fpn *);
@@ -271,6 +270,7 @@ static itg     VerInsEdg   (EdgSct *, VerSct *, fpn);
 static void    SetEdgTng   (EdgSct *);
 static fpn     GetTriAni   (TriSct *);
 #ifdef WITH_FAST_MODE
+static fpn     DisVerEdgStl(fpn *, fpn *, fpn *, fpn *, fpn);
 static fpn     DisVerTriStl(MshSct *, fpn *, StlSct *);
 #endif
 
@@ -3210,6 +3210,7 @@ static fpn DisVerEdg(fpn VerCrd[3], EdgSct *edg)
 /* Compute the distance between a vertex and an edge                          */
 /*----------------------------------------------------------------------------*/
 
+#ifdef WITH_FAST_MODE
 static fpn DisVerEdgStl(fpn VerCrd[3], fpn *crd0, fpn *crd1, fpn *tng, fpn siz)
 {
    fpn dis0, dis1, ImgCrd[3], TotSiz = 0.;
@@ -3225,6 +3226,7 @@ static fpn DisVerEdgStl(fpn VerCrd[3], fpn *crd0, fpn *crd1, fpn *tng, fpn siz)
 
    return(MIN(dis0, dis1));
 }
+#endif
 
 
 /*----------------------------------------------------------------------------*/

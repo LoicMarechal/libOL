@@ -65,7 +65,6 @@ int main()
    puts("\nRead mesh");
 
    if(!(MshIdx = GmfOpenMesh("../sample_meshes/test.meshb", GmfRead, &ver, &dim)))
-   //if(!(MshIdx = GmfOpenMesh("../sample_meshes/hexes.meshb", GmfRead, &ver, &dim)))
    {
      puts("Cannot open test.meshb.");
      return(1);
