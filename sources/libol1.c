@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.79                         */
+/*                      LIB OCTREE LOCALISATION V1.80                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   oct 29 2021                                        */
+/*    Last modification:   nov 19 2021                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -431,7 +431,11 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
    msh->eps = otr->eps;
 
    // Set the grid size depending on the number of entities in the mesh
-   otr->GrdLvl = (int)(log(TotItmCnt / ItmPerBuc) / (3 * log(2)));
+   if(TotItmCnt >= ItmPerBuc)
+      otr->GrdLvl = (int)(log(TotItmCnt / ItmPerBuc) / (3 * log(2)));
+   else
+      otr->GrdLvl = 0;
+
    otr->NmbBuc = 1 << otr->GrdLvl;
    otr->grd    = NewMem(otr, CUB(otr->NmbBuc) * sizeof(BucSct));
    otr->NmbThr = NmbThr;
