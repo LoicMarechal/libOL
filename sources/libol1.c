@@ -322,6 +322,8 @@ static const itg tvpe[12][2]     = { {3,2}, {0,1}, {4,5}, {7,6}, {3,7}, {2,6},
 static const itg tvpf[6][4]      = { {3,0,4,7}, {5,1,2,6}, {3,2,1,0},
                                      {5,6,7,4},{3,7,6,2}, {5,4,0,1} };
 
+static const itg entityToEdgType[4] = {LolEdge0,LolEdge1,LolEdge2,LolEdge3};
+static const itg entityToVerType[4] = {LolVertex0,LolVertex1,LolVertex2,LolVertex3};
 
 /*----------------------------------------------------------------------------*/
 /* Allocate and build a new octree from user's data                           */
@@ -430,8 +432,12 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
    otr->msh = msh;
    msh->eps = otr->eps;
 
-   // Set the grid size depending on the number of entities in the mesh
-   otr->GrdLvl = (int)(log(TotItmCnt / ItmPerBuc) / (3 * log(2)));
+  // Set the grid size depending on the number of entities in the mesh
+  if (TotItmCnt >= ItmPerBuc)
+    otr->GrdLvl = (int)(log(TotItmCnt/ItmPerBuc)/(3*log(2)));
+  else
+    otr->GrdLvl = 0;
+
    otr->NmbBuc = 1 << otr->GrdLvl;
    otr->grd    = NewMem(otr, CUB(otr->NmbBuc) * sizeof(BucSct));
    otr->NmbThr = NmbThr;
@@ -1165,7 +1171,7 @@ itg LolIsInside(int64_t OctIdx, fpn *VerCrd, fpn *VerTng, itg ThrIdx)
 /*----------------------------------------------------------------------------*/
 
 itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
-                     itg MinItm, fpn *MinCrd, itg ThrIdx)
+                     itg MinItm, fpn *MinCrd, itg* InfoProj, itg ThrIdx)
 {
    OtrSct     *otr = (OtrSct *)OctIdx;
    MshThrSct  *ThrMsh = otr->msh->thr[ ThrIdx ];
@@ -1180,6 +1186,7 @@ itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
       // Vertex case, there is only one possible projection:
       // the target vertex itself
       CpyVec((fpn *)GetPtrItm(msh, LolTypVer, MinItm), MinCrd);
+      *InfoProj = LolVertex0;
       return(1);
    }
    else if(typ == LolTypEdg)
@@ -1191,14 +1198,21 @@ itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
       if(VerInsEdg(&ThrMsh->edg, &TmpVer, otr->eps))
       {
          CpyVec(TmpVer.crd, MinCrd);
+	 *InfoProj = LolEdge0;
          return(2);
       }
 
       // Or one of its two vertices
       if(dis(VerCrd, ThrMsh->edg.ver[0]->crd) < dis(VerCrd, ThrMsh->edg.ver[1]->crd))
+	{
          CpyVec(ThrMsh->edg.ver[0]->crd, MinCrd);
+         *InfoProj = LolVertex0;
+	}
       else
+	{
          CpyVec(ThrMsh->edg.ver[1]->crd, MinCrd);
+	 *InfoProj = LolVertex1;
+	}
 
       return(1);
    }
@@ -1211,6 +1225,7 @@ itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
       if(VerInsTri(&ThrMsh->tri, &TmpVer, otr->eps))
       {
          CpyVec(TmpVer.crd, MinCrd);
+	 *InfoProj = LolInTriangle;
          return(3); // the closest projection is inside the triangle
       }
 
@@ -1226,6 +1241,7 @@ itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
             MinDis = dis(VerCrd, TmpVer.crd);
             CpyVec(TmpVer.crd, MinCrd);
             EdgFlg = 2;
+	    *InfoProj = entityToEdgType[i];
          }
       }
 
@@ -1234,11 +1250,12 @@ itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
       {
          CurDis = dis(VerCrd, ThrMsh->tri.ver[i]->crd);
 
-         if(CurDis < MinDis)
+         if(CurDis <= MinDis)
          {
             MinDis = CurDis;
             CpyVec(ThrMsh->tri.ver[i]->crd, MinCrd);
             EdgFlg = 0;
+	    *InfoProj = entityToVerType[i];
          }
       }
 
@@ -1260,6 +1277,7 @@ itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
          if(VerInsTri(tri, &TmpVer, otr->eps))
          {
             CpyVec(TmpVer.crd, MinCrd);
+	    *InfoProj = LolInQuad;
             return(3); // the closest projection is inside the quad
          }
       }
@@ -1276,6 +1294,7 @@ itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
             MinDis = dis(VerCrd, TmpVer.crd);
             CpyVec(TmpVer.crd, MinCrd);
             EdgFlg = 2;
+	    *InfoProj = entityToEdgType[i];
          }
       }
 
@@ -1289,6 +1308,7 @@ itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
             MinDis = CurDis;
             CpyVec(ThrMsh->qad.ver[i]->crd, MinCrd);
             EdgFlg = 0;
+	    *InfoProj = entityToVerType[i];
          }
       }
 

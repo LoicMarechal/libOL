@@ -29,6 +29,17 @@
 enum TypTag {  LolTypVer=1, LolTypEdg, LolTypTri, LolTypQad,
                LolTypTet,   LolTypPyr, LolTypPri, LolTypHex, LolNmbTyp };
 
+enum LolInfoProjectionType {
+  LolInTriangle=1,
+  LolInQuad,
+  LolEdge0,
+  LolEdge1,
+  LolEdge2,
+  LolEdge3,
+  LolVertex0,
+  LolVertex1,
+  LolVertex2,
+  LolVertex3 };
 
 /*----------------------------------------------------------------------------*/
 /* Set integer and floating point sizes:                                      */
@@ -76,7 +87,7 @@ itg      LolGetNearest        (int64_t, itg, fpn *, fpn *, fpn, itg (void *, itg
 itg      LolIntersectSurface  (int64_t, fpn *, fpn *, fpn *,
                                fpn, itg (void *, itg), void *, itg);
 itg      LolIsInside          (int64_t, fpn *, fpn *, itg);
-itg      LolProjectVertex     (int64_t, fpn *, itg, itg, fpn *, itg);
+itg      LolProjectVertex     (int64_t, fpn *, itg, itg, fpn *, itg*, itg);
 itg      LolCheckIntersections(int64_t, itg, itg *);
 
 #ifdef __cplusplus
