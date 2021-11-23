@@ -45,7 +45,7 @@ int testOnTriangles()
 
   pt[0]=1.5; pt[1]=-0.5;  pt  [2]=0;
   eltId = LolGetNearest(octreeIdx, LolTypTri, pt, &dist, -1, nullptr, nullptr, 0);
-  LolProjectVertex(octreeIdx, pt, LolTypTri, eltId, proj, infoProj, 0);
+  LolProjectVertex(octreeIdx, pt, LolTypTri, eltId, proj, &infoProj, 0);
   check( eltId == 2);
   check( infoProj==LolVertex0 ) ;
   projExact[0] = 1; projExact[1] = 0; projExact[2] = 0;
@@ -54,7 +54,7 @@ int testOnTriangles()
 
   pt[0]=1.1; pt[1]=1.1;  pt[2]=0;
   eltId = LolGetNearest(octreeIdx, LolTypTri, pt, &dist, -1, nullptr, nullptr, 0);
-  LolProjectVertex(octreeIdx, pt, LolTypTri, eltId, proj, infoProj, 0);
+  LolProjectVertex(octreeIdx, pt, LolTypTri, eltId, proj, &infoProj, 0);
   projExact[0] = 1; projExact[1] = 1; projExact[2] = 0;
   check( eltId == 2);
   check(infoProj==LolVertex1);
@@ -63,7 +63,7 @@ int testOnTriangles()
 
   pt[0]=-0.1; pt[1]=1.1;  pt[2]=0;
   eltId = LolGetNearest(octreeIdx, LolTypTri, pt, &dist, -1, nullptr, nullptr,0);
-  LolProjectVertex(octreeIdx, pt, LolTypTri, eltId, proj, infoProj, 0);
+  LolProjectVertex(octreeIdx, pt, LolTypTri, eltId, proj, &infoProj, 0);
   projExact[0] = 0; projExact[1] = 1; projExact[2] = 0;
   check( eltId == 2);
   check(infoProj==LolVertex2);
@@ -72,7 +72,7 @@ int testOnTriangles()
 
   pt[0]=0; pt[1]=1.1;  pt[2]=0;
   eltId = LolGetNearest(octreeIdx, LolTypTri, pt, &dist, -1, nullptr, nullptr,0);
-  LolProjectVertex(octreeIdx, pt, LolTypTri, eltId, proj, infoProj, 0);
+  LolProjectVertex(octreeIdx, pt, LolTypTri, eltId, proj, &infoProj, 0);
   projExact[0] = 0; projExact[1] = 1; projExact[2] = 0;
   check( eltId == 2);
   check(infoProj==LolVertex2);
@@ -81,7 +81,7 @@ int testOnTriangles()
 
   pt[0]=1.1; pt[1]=0.5;  pt[2]=0.0;
   eltId = LolGetNearest(octreeIdx, LolTypTri, pt, &dist, -1, nullptr, nullptr,0);
-  LolProjectVertex(octreeIdx, pt, LolTypTri, eltId, proj, infoProj, 0);
+  LolProjectVertex(octreeIdx, pt, LolTypTri, eltId, proj, &infoProj, 0);
   projExact[0] = 1; projExact[1] = 0.5; projExact[2] = 0;
   check( eltId == 2);
   check(infoProj==LolEdge2);
@@ -90,10 +90,12 @@ int testOnTriangles()
 
   pt[0]=0.5; pt[1]=1.1;  pt[2]=0;
   eltId = LolGetNearest(octreeIdx, LolTypTri, pt, &dist, -1, nullptr, nullptr,0);
-  LolProjectVertex(octreeIdx, pt, LolTypTri, eltId, proj, infoProj, 0);
+  LolProjectVertex(octreeIdx, pt, LolTypTri, eltId, proj, &infoProj, 0);
   projExact[0] = 0.5; projExact[1] = 1; projExact[2] = 0;
   check( eltId == 2);
   check(infoProj==LolEdge0);
+
+  return 0;
 }
 
 
@@ -101,9 +103,9 @@ int testOnTriangles()
 
 int main()
 {
-  std::cout << "testOnTriangles\n";
+  std::cout << "testOnTriangles ...";
   testOnTriangles();
-  std::cout << "testOnTriangles - DONE\n";
+  std::cout << " DONE\n";
 
   return 0;
 }
