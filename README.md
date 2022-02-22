@@ -1,6 +1,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## libOL version 1.77
+## libOL version 1.80
 Quick and easy spatial localization with _octree_
 
 ## Overview
@@ -37,7 +37,7 @@ Optionally, you may download some sample meshes to run the examples:
 - you need to install the [libMeshb](https://github.com/LoicMarechal/libMeshb) from GitHub
 - manually download files from the *Git LFS* repository: [sample files](sample_meshes/)
 - move them into /opt/libOL/sample_meshes/
-- uncompress them with `lzip -d *.meshb.lz`
+- uncompress them with `xz -d *.meshb.xz`
 - you may now enter /opt/libOL/examples directory and run the various examples
 
 When speed is is more critical than memory, you can compile the library with the `-DWITH_FAST_MODE` option in order to speed-up queries by 35%, at the cost of 2.5 times the memory footprint.
