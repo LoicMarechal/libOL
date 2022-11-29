@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.64                         */
+/*                      LIB OCTREE LOCALISATION V1.81                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /* Description:         Basic localization test on a surface mesh             */
 /* Author:              Loic MARECHAL                                         */
 /* Creation date:       mar 16 2012                                           */
-/* Last modification:   aug 04 2021                                           */
+/* Last modification:   mar 11 2022                                           */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -18,6 +18,7 @@
 /* Includes                                                                   */
 /*----------------------------------------------------------------------------*/
 
+#include <assert.h>
 #include <math.h>
 #include <float.h>
 #include <stdio.h>
@@ -85,6 +86,7 @@ int main()
    }
 
    VerTab = malloc((NmbVer+1) * 3 * sizeof(double));
+   assert(VerTab);
    GmfGetBlock(MshIdx, GmfVertices, 1, NmbVer, 0, NULL, NULL,
                GmfDoubleVec, 3, VerTab[1], VerTab[ NmbVer ],
                GmfInt, &ref, &ref );
@@ -92,6 +94,7 @@ int main()
    if(NmbEdg)
    {
       EdgTab = malloc((NmbEdg+1) * 2 * sizeof(int));
+      assert(EdgTab);
       GmfGetBlock(MshIdx, GmfEdges, 1, NmbEdg, 0, NULL, NULL,
                   GmfIntVec, 2, EdgTab[1], EdgTab[ NmbEdg ],
                   GmfInt, &ref, &ref);
@@ -100,6 +103,7 @@ int main()
    if(NmbTri)
    {
       TriTab = malloc((NmbTri+1) * 3 * sizeof(int));
+      assert(TriTab);
       GmfGetBlock(MshIdx, GmfTriangles, 1, NmbTri, 0, NULL, NULL,
                   GmfIntVec, 3, TriTab[1], TriTab[ NmbTri ],
                   GmfInt, &ref, &ref );
@@ -108,6 +112,7 @@ int main()
    if(NmbQad)
    {
       QadTab = malloc((NmbQad+1) * 4 * sizeof(int));
+      assert(QadTab);
       GmfGetBlock(MshIdx, GmfQuadrilaterals, 1, NmbQad, 0, NULL, NULL,
                   GmfIntVec, 4, QadTab[1], QadTab[ NmbQad ],
                   GmfInt, &ref, &ref );
@@ -116,6 +121,7 @@ int main()
    if(NmbTet)
    {
       TetTab = malloc((NmbTet+1) * 4 * sizeof(int));
+      assert(TetTab);
       GmfGetBlock(MshIdx, GmfTetrahedra, 1, NmbTet, 0, NULL, NULL,
                   GmfIntVec, 4, TetTab[1], TetTab[ NmbTet ],
                   GmfInt, &ref, &ref );
@@ -140,6 +146,12 @@ int main()
                            0, NULL, NULL,
                            0, NULL, NULL ,
                            1, 1);
+
+   if(!OctIdx)
+   {
+      puts("The octree building failled.");
+      exit(1);
+   }
 
    printf(" %g s\n", (double)(clock() - t) / CLOCKS_PER_SEC);
 

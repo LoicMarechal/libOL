@@ -79,6 +79,8 @@ c     Build the octree
      +, 1, 1)
       print*, 'OctIdx = ', OctIdx
 
+      if(OctIdx.eq.0) STOP 'The octree building failled'
+
 c     Find the closest vertex and triangle from a given set of coordinates
       crd1(1) = 0
       crd1(2) = 0
