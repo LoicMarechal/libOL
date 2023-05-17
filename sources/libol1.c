@@ -2638,13 +2638,13 @@ itg VerInsTet(VerSct *ver, TetSct *tet, fpn eps)
 /* Test if a vertex is inside a hex                                           */
 /*----------------------------------------------------------------------------*/
 
-static itg VerInsHex(VerSct *ver, HexSct *hex)
+static itg VerInsHexWithTol(VerSct *ver, HexSct *hex, float eps)
 {
    itg i;
 
    for(i=0;i<3;i++)
-      if( (ver->crd[i] > hex->ver[5]->crd[i])
-      ||  (ver->crd[i] < hex->ver[3]->crd[i]) )
+      if( (ver->crd[i] > hex->ver[5]->crd[i] + eps)
+      ||  (ver->crd[i] < hex->ver[3]->crd[i] - eps) )
       {
          return(0);
       }
@@ -2652,6 +2652,10 @@ static itg VerInsHex(VerSct *ver, HexSct *hex)
    return(1);
 }
 
+static itg VerInsHex(VerSct *ver, HexSct *hex)
+{
+   return VerInsHexWithTol(ver, hex, 0);
+}
 
 /*----------------------------------------------------------------------------*/
 /* Test if an edge intersects a quad                                          */
@@ -2694,8 +2698,9 @@ static itg EdgIntQad(HexSct *hex, itg FacIdx, EdgSct *edg,
                      +  fabs(sgn[1])), edg->ver[1]->crd,
                         fabs(sgn[1]) / (fabs(sgn[0])
                      +  fabs(sgn[1])), edg->ver[0]->crd, IntVer->crd);
-
-            return(VerInsHex(IntVer, hex));
+            // On success IntVer is "on" the hexa so testing if it's "in"
+            // in not determined so we need a tolerance
+            return(VerInsHexWithTol(IntVer, hex, eps));
          }
       }break;
 
