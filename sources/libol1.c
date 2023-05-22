@@ -2638,13 +2638,13 @@ itg VerInsTet(VerSct *ver, TetSct *tet, fpn eps)
 /* Test if a vertex is inside a hex                                           */
 /*----------------------------------------------------------------------------*/
 
-static itg VerInsHex(VerSct *ver, HexSct *hex)
+static itg VerInsHexWithTol(VerSct *ver, HexSct *hex, float eps)
 {
    itg i;
 
    for(i=0;i<3;i++)
-      if( (ver->crd[i] > hex->ver[5]->crd[i])
-      ||  (ver->crd[i] < hex->ver[3]->crd[i]) )
+      if( (ver->crd[i] > hex->ver[5]->crd[i] + eps)
+      ||  (ver->crd[i] < hex->ver[3]->crd[i] - eps) )
       {
          return(0);
       }
@@ -2652,6 +2652,10 @@ static itg VerInsHex(VerSct *ver, HexSct *hex)
    return(1);
 }
 
+static itg VerInsHex(VerSct *ver, HexSct *hex)
+{
+   return VerInsHexWithTol(ver, hex, 0);
+}
 
 /*----------------------------------------------------------------------------*/
 /* Test if an edge intersects a quad                                          */
@@ -2694,8 +2698,9 @@ static itg EdgIntQad(HexSct *hex, itg FacIdx, EdgSct *edg,
                      +  fabs(sgn[1])), edg->ver[1]->crd,
                         fabs(sgn[1]) / (fabs(sgn[0])
                      +  fabs(sgn[1])), edg->ver[0]->crd, IntVer->crd);
-
-            return(VerInsHex(IntVer, hex));
+            // On success IntVer is "on" the hexa so testing if it's "in"
+            // in not determined so we need a tolerance
+            return(VerInsHexWithTol(IntVer, hex, eps));
          }
       }break;
 
@@ -2941,7 +2946,7 @@ static itg VerInsEdg(EdgSct *edg, VerSct *ver, fpn eps)
 static fpn DisVerTri(MshSct *msh, fpn VerCrd[3], TriSct *tri)
 {
    itg      i, cod = 0, inc = 1;
-   fpn      dis1, TriSrf, SubSrf, TotSrf=0.;
+   fpn      dis1, TriSrf;
    VerSct   img;
    EdgSct   edg;
    TriSct   SubTri;
@@ -2960,39 +2965,33 @@ static fpn DisVerTri(MshSct *msh, fpn VerCrd[3], TriSct *tri)
    SubTri.ver[2] = &img;
    dis1 = PrjVerPla(VerCrd, tri->ver[0]->crd, tri->nrm, img.crd);
 
-   // Compute the barycentric coordinates and check the projection's position
+   // Check the projection's position
    for(i=0;i<3;i++)
    {
       SubTri.ver[0] = tri->ver[ (i+1)%3 ];
       SubTri.ver[1] = tri->ver[ (i+2)%3 ];
 
       GetTriVec(&SubTri, SubTri.nrm);
-      SubSrf = GetNrmVec(SubTri.nrm);
-      TotSrf += SubSrf;
-
       if(DotPrd(SubTri.nrm, tri->nrm) < 0.)
          cod |= inc;
 
       inc = inc << 1;
    }
 
-   // If the sum of the sub triangles surfaces is equal
-   // to the main triangle's one, the projection lies inside the triangle
-   if( (TotSrf - TriSrf) < .00001 * (TotSrf + TriSrf))
-      return(POW(dis1));
-
-   // Otherwise, compute the distance between an edge
+   // Compute the distance between an edge
    // or a vertex depending on the position code
    switch(cod)
    {
-      // Facing edge 0 (1-2) or the barycentric coordinates are degenerate
-      case 0 : case 1 :
-      {
-         edg.ver[0] = tri->ver[1];
-         edg.ver[1] = tri->ver[2];
-         SetEdgTng(&edg);
-         return(DisVerEdg(VerCrd, &edg));
-      }
+      // In the triangle
+      case 0 :
+        return POW(dis1);
+      // Facing edge 0 (1-2)
+      case 1 : {
+          edg.ver[0] = tri->ver[1];
+          edg.ver[1] = tri->ver[2];
+          SetEdgTng(&edg);
+          return (DisVerEdg(VerCrd, &edg));
+        }
 
       // Facing edge 1 (2-0)
       case 2 :
