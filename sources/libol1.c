@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.81                         */
+/*                      LIB OCTREE LOCALISATION V1.82                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   mar 18 2022                                        */
+/*    Last modification:   jan 04 2024                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -158,14 +158,11 @@ typedef struct
 typedef struct
 {
    MshThrSct  *thr[ MaxThr ];
-   size_t      UsrSiz[ LolNmbTyp ], NmbItm[ LolNmbTyp ];
+   size_t      UsrSiz[ LolNmbTyp ];
    fpn         aniso, eps;
-   itg         BasIdx, StlMod;
+   itg         BasIdx, StlMod, NmbItm[ LolNmbTyp ];
    char       *UsrPtr[ LolNmbTyp ];
    StlSct     *StlTab;
-#ifdef WITH_PROFILING
-   int64_t     CptOct, CptBuc, CptTri;
-#endif
 }MshSct;
 
 typedef struct OctSctPtr
@@ -254,8 +251,8 @@ static void    ChkTriIntTri(OtrSct *, OctSct *, itg *, itg, itg *);
 /*----------------------------------------------------------------------------*/
 
 static itg     EdgIntEdg   (EdgSct *, EdgSct *, VerSct *, fpn);
-static fpn     DisVerTri   (MshSct *, fpn *, TriSct *);
-static fpn     DisVerQad   (MshSct *, fpn *, QadSct *);
+static fpn     DisVerTri   (fpn *, TriSct *);
+static fpn     DisVerQad   (fpn *, QadSct *);
 static fpn     DisVerTet   (MshSct *, fpn *, TetSct *);
 static fpn     GetTriSrf   (TriSct *);
 static fpn     GetVolTet   (TetSct *);
@@ -277,7 +274,7 @@ static void    SetEdgTng   (EdgSct *);
 static fpn     GetTriAni   (TriSct *);
 #ifdef WITH_FAST_MODE
 static fpn     DisVerEdgStl(fpn *, fpn *, fpn *, fpn *, fpn);
-static fpn     DisVerTriStl(MshSct *, fpn *, StlSct *);
+static fpn     DisVerTriStl(fpn *, StlSct *);
 #endif
 
 
@@ -327,6 +324,15 @@ static const itg tvpe[12][2]     = { {3,2}, {0,1}, {4,5}, {7,6}, {3,7}, {2,6},
                                      {1,5}, {0,4}, {3,0}, {7,4}, {6,5}, {2,1} };
 static const itg tvpf[6][4]      = { {3,0,4,7}, {5,1,2,6}, {3,2,1,0},
                                      {5,6,7,4},{3,7,6,2}, {5,4,0,1} };
+
+
+/*----------------------------------------------------------------------------*/
+/* Global profiling variables                                                 */
+/*----------------------------------------------------------------------------*/
+
+#ifdef WITH_PROFILING
+int64_t CptOct=0, CptBuc=0, CptTri=0;
+#endif
 
 
 /*----------------------------------------------------------------------------*/
@@ -413,6 +419,24 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
    TotItmCnt               += NmbTet;
    msh->UsrPtr[ LolTypTet ] = (char *)PtrTet1;
    msh->UsrSiz[ LolTypTet ] = (char *)PtrTet2 - (char *)PtrTet1;
+
+   msh->NmbItm[ LolTypPyr ] = NmbPyr;
+   MaxItmCnt                = MAX(MaxItmCnt, NmbPyr);
+   TotItmCnt               += NmbPyr;
+   msh->UsrPtr[ LolTypPyr ] = (char *)PtrPyr1;
+   msh->UsrSiz[ LolTypPyr ] = (char *)PtrPyr2 - (char *)PtrPyr1;
+
+   msh->NmbItm[ LolTypPri ] = NmbPri;
+   MaxItmCnt                = MAX(MaxItmCnt, NmbPri);
+   TotItmCnt               += NmbPri;
+   msh->UsrPtr[ LolTypPri ] = (char *)PtrPri1;
+   msh->UsrSiz[ LolTypPri ] = (char *)PtrPri2 - (char *)PtrPri1;
+
+   msh->NmbItm[ LolTypHex ] = NmbHex;
+   MaxItmCnt                = MAX(MaxItmCnt, NmbHex);
+   TotItmCnt               += NmbHex;
+   msh->UsrPtr[ LolTypHex ] = (char *)PtrHex1;
+   msh->UsrSiz[ LolTypHex ] = (char *)PtrHex2 - (char *)PtrHex1;
 
    // Allocation of thread related buffers to make the libOL thread safe
    for(t=0;t<NmbThr;t++)
@@ -714,8 +738,7 @@ size_t LolFreeOctree(int64_t OctIdx)
    size_t   MemUse = otr->MemUse;
 
 #ifdef WITH_PROFILING
-   printf(  "CptBuc = %lld, CptOct = %lld, CptTri = %lld\n",
-            otr->msh->CptBuc, otr->msh->CptOct, otr->msh->CptTri );
+   printf("CptBuc = %lld, CptOct = %lld, CptTri = %lld\n",CptBuc,CptOct,CptTri);
 #endif
 
    FreAllMem(otr);
@@ -730,7 +753,7 @@ size_t LolFreeOctree(int64_t OctIdx)
 /*----------------------------------------------------------------------------*/
 
 itg LolGetBoundingBox(  int64_t OctIdx, itg typ, itg MaxItm, itg *ItmTab,
-                        fpn MinCrd[3], fpn MaxCrd[3], itg ThrIdx )
+                        fpn *MinCrd, fpn *MaxCrd, itg ThrIdx )
 {
    itg i, NmbItm = 0;
    fpn box[2][3] = { {MinCrd[0], MinCrd[1], MinCrd[2]},
@@ -854,8 +877,8 @@ static void ChkTriIntTri(  OtrSct *otr, OctSct *oct, itg *NmbItm,
 /* Recursive coordinates search                                               */
 /*----------------------------------------------------------------------------*/
 
-static OctSct *GetCrd(  OctSct *oct, itg MaxLvl, fpn VerCrd[3],
-                        fpn MinCrd[3], fpn MaxCrd[3] )
+static OctSct *GetCrd(  OctSct *oct, itg MaxLvl, fpn *VerCrd,
+                        fpn *MinCrd, fpn *MaxCrd )
 {
    itg SonIdx;
    fpn MidCrd[3], OctMin[3], OctMax[3], SonMin[3], SonMax[3];
@@ -889,7 +912,7 @@ static OctSct *GetCrd(  OctSct *oct, itg MaxLvl, fpn VerCrd[3],
 
 static void GetBox(  OtrSct *otr, OctSct *oct, itg typ, itg *NmbItm,
                      itg MaxItm, itg *ItmTab, char *FlgTab, fpn box[2][3],
-                     fpn eps, fpn MinCrd[3], fpn MaxCrd[3], itg ThrIdx )
+                     fpn eps, fpn *MinCrd, fpn *MaxCrd, itg ThrIdx )
 {
    itg i;
    LnkSct *lnk;
@@ -1333,8 +1356,7 @@ itg LolProjectVertex(int64_t OctIdx, fpn *VerCrd, itg typ,
 /* Extract the bounding box from a grid's bucket                              */
 /*----------------------------------------------------------------------------*/
 
-static void GetBucBox(  OtrSct *otr, BucSct *buc,
-                        fpn MinCrd[3], fpn MaxCrd[3] )
+static void GetBucBox(OtrSct *otr, BucSct *buc, fpn *MinCrd, fpn *MaxCrd)
 {
    itg i;
 
@@ -1345,7 +1367,7 @@ static void GetBucBox(  OtrSct *otr, BucSct *buc,
    }
 
 #ifdef WITH_PROFILING
-   otr->msh->CptBuc++;
+   CptBuc++;
 #endif
 }
 
@@ -1382,7 +1404,7 @@ static BucSct *GetBucNgb(OtrSct *otr, BucSct *buc, itg dir)
 /* Compute the distance between a point and an octant                         */
 /*----------------------------------------------------------------------------*/
 
-static fpn DisVerOct(fpn VerCrd[3], fpn MinCrd[3], fpn MaxCrd[3])
+static fpn DisVerOct(fpn *VerCrd, fpn *MinCrd, fpn *MaxCrd)
 {
    itg i;
    fpn ClpCrd[3];
@@ -1404,12 +1426,12 @@ static fpn DisVerOct(fpn VerCrd[3], fpn MinCrd[3], fpn MaxCrd[3])
 /* Search for the nearest item from a vertex from an octant                   */
 /*----------------------------------------------------------------------------*/
 
-static void GetOctLnk(  MshSct *msh, itg typ, fpn VerCrd[3], itg *MinItm,
-                        fpn *MinDis, OctSct *oct, fpn MinCrd[3], fpn MaxCrd[3],
+static void GetOctLnk(  MshSct *msh, itg typ, fpn *VerCrd, itg *MinItm,
+                        fpn *MinDis, OctSct *oct, fpn *MinCrd, fpn *MaxCrd,
                         itg (UsrPrc)(void *, itg), void *UsrDat, itg ThrIdx )
 {
    itg         i;
-   fpn         CurDis, SonMin[3], SonMax[3];
+   fpn         CurDis = 0., SonMin[3], SonMax[3];
    LnkSct     *lnk;
    MshThrSct  *ThrMsh = msh->thr[ ThrIdx ];
 #ifdef WITH_FAST_MODE
@@ -1417,7 +1439,7 @@ static void GetOctLnk(  MshSct *msh, itg typ, fpn VerCrd[3], itg *MinItm,
 #endif
 
 #ifdef WITH_PROFILING
-   msh->CptOct++;
+   CptOct++;
 #endif
 
    if(oct->sub)
@@ -1480,11 +1502,11 @@ static void GetOctLnk(  MshSct *msh, itg typ, fpn VerCrd[3], itg *MinItm,
 
 #ifdef WITH_FAST_MODE
             // In fast mode the triangle is stored in an internel STL buffer
-            CurDis = DisVerTriStl(msh, VerCrd, &msh->StlTab[ lnk->idx ]);
+            CurDis = DisVerTriStl(VerCrd, &msh->StlTab[ lnk->idx ]);
 #else
             // Otherwise, we need to install it in the local thread-safe buffer
             SetItm(msh, LolTypTri, lnk->idx, 0, ThrIdx);
-            CurDis = DisVerTri(msh, VerCrd, &ThrMsh->tri);
+            CurDis = DisVerTri(VerCrd, &ThrMsh->tri);
 #endif
          }
          else if(lnk->typ == LolTypQad)
@@ -1499,7 +1521,7 @@ static void GetOctLnk(  MshSct *msh, itg typ, fpn VerCrd[3], itg *MinItm,
             // Setup the current edge to the thread local structure in order
             // to compute the square of the distance from the quad
             SetItm(msh, LolTypQad, lnk->idx, 0, ThrIdx);
-            CurDis = DisVerQad(msh, VerCrd, &ThrMsh->qad);
+            CurDis = DisVerQad(VerCrd, &ThrMsh->qad);
          }
          else if(lnk->typ == LolTypTet)
          {
@@ -1508,6 +1530,8 @@ static void GetOctLnk(  MshSct *msh, itg typ, fpn VerCrd[3], itg *MinItm,
             SetItm(msh, LolTypTet, lnk->idx, 0, ThrIdx);
             CurDis = DisVerTet(msh, VerCrd, &ThrMsh->tet);
          }
+         else
+            CurDis = FLT_MAX;
 
          // Store the minimum distance and entity in the user's variables
          if( (CurDis >= 0.) && (CurDis < *MinDis) )
@@ -1550,8 +1574,8 @@ static void CpyOctCrd(OctSct *oct, fpn MinCrd[3], fpn MaxCrd[3])
 /*----------------------------------------------------------------------------*/
 
 static void IntLinOct(  OtrSct *otr, MshSct *msh, fpn *crd, fpn *tng,
-                        itg *MinItm, fpn *MinDis, OctSct *oct, fpn MinCrd[3],
-                        fpn MaxCrd[3], itg (UsrPrc)(void *, itg), void *UsrDat,
+                        itg *MinItm, fpn *MinDis, OctSct *oct, fpn *MinCrd,
+                        fpn *MaxCrd, itg (UsrPrc)(void *, itg), void *UsrDat,
                         itg ThrIdx )
 {
    itg         i;
@@ -1620,8 +1644,8 @@ static void IntLinOct(  OtrSct *otr, MshSct *msh, fpn *crd, fpn *tng,
 /*----------------------------------------------------------------------------*/
 
 static void IntVecOct(  OtrSct *otr, MshSct *msh, fpn *crd, fpn *tng,
-                        itg *NmbTri, itg *TriTab, OctSct *oct, fpn MinCrd[3],
-                        fpn MaxCrd[3], itg ThrIdx )
+                        itg *NmbTri, itg *TriTab, OctSct *oct, fpn *MinCrd,
+                        fpn *MaxCrd, itg ThrIdx )
 {
    itg         i;
    fpn         SonMin[3], SonMax[3], vec[3];
@@ -1891,7 +1915,7 @@ static void SetMshBox(OtrSct *box, MshSct *msh)
 /*----------------------------------------------------------------------------*/
 
 static itg AddVer(MshSct *msh, OtrSct *otr, OctSct *oct,
-                  fpn MinCrd[3], fpn MaxCrd[3] )
+                  fpn *MinCrd, fpn *MaxCrd )
 {
    itg i, ret;
    fpn SonMin[3], SonMax[3];
@@ -1930,7 +1954,7 @@ static itg AddVer(MshSct *msh, OtrSct *otr, OctSct *oct,
 /*----------------------------------------------------------------------------*/
 
 static itg AddEdg(MshSct *msh, OtrSct *otr, OctSct *oct,
-                  fpn MinCrd[3], fpn MaxCrd[3] )
+                  fpn *MinCrd, fpn *MaxCrd )
 {
    itg i, ret;
    fpn SonMin[3], SonMax[3];
@@ -1970,7 +1994,7 @@ static itg AddEdg(MshSct *msh, OtrSct *otr, OctSct *oct,
 /*----------------------------------------------------------------------------*/
 
 static itg AddTri(MshSct *msh, OtrSct *otr, OctSct *oct,
-                  fpn MinCrd[3], fpn MaxCrd[3] )
+                  fpn *MinCrd, fpn *MaxCrd )
 {
    itg i, ret;
    fpn SonMin[3], SonMax[3];
@@ -2011,7 +2035,7 @@ static itg AddTri(MshSct *msh, OtrSct *otr, OctSct *oct,
 /*----------------------------------------------------------------------------*/
 
 static itg AddQad(MshSct *msh, OtrSct *otr, OctSct *oct,
-                  fpn MinCrd[3], fpn MaxCrd[3] )
+                  fpn *MinCrd, fpn *MaxCrd )
 {
    itg i, ret;
    fpn SonMin[3], SonMax[3];
@@ -2051,7 +2075,7 @@ static itg AddQad(MshSct *msh, OtrSct *otr, OctSct *oct,
 /*----------------------------------------------------------------------------*/
 
 static itg AddTet(MshSct *msh, OtrSct *otr, OctSct *oct,
-                  fpn MinCrd[3], fpn MaxCrd[3] )
+                  fpn *MinCrd, fpn *MaxCrd )
 {
    itg i, ret;
    fpn SonMin[3], SonMax[3];
@@ -2092,7 +2116,7 @@ static itg AddTet(MshSct *msh, OtrSct *otr, OctSct *oct,
 /*----------------------------------------------------------------------------*/
 
 static itg SubOct(MshSct *msh, OtrSct *otr, OctSct *oct,
-                  fpn MinCrd[3], fpn MaxCrd[3] )
+                  fpn *MinCrd, fpn *MaxCrd )
 {
    itg i, ret;
    fpn SonMin[3], SonMax[3];
@@ -2300,8 +2324,8 @@ static itg LnkItm(OtrSct *otr, OctSct *oct, itg typ, itg idx, unsigned char ani)
 /* Build an octant strucutre from the two corner points                       */
 /*----------------------------------------------------------------------------*/
 
-static void SetSonCrd(  itg SonIdx, fpn SonMin[3], fpn SonMax[3],
-                        fpn MinCrd[3], fpn MaxCrd[3] )
+static void SetSonCrd(  itg SonIdx, fpn *SonMin, fpn *SonMax,
+                        fpn *MinCrd, fpn *MaxCrd )
 {
    fpn MidCrd[3];
 
@@ -2388,7 +2412,7 @@ static void SetSonCrd(  itg SonIdx, fpn SonMin[3], fpn SonMax[3],
 /* Test if a vertex is inside an octant                                       */
 /*----------------------------------------------------------------------------*/
 
-static itg VerInsOct(fpn VerCrd[3], fpn MinCrd[3], fpn MaxCrd[3])
+static itg VerInsOct(fpn *VerCrd, fpn *MinCrd, fpn *MaxCrd)
 {
    itg i;
 
@@ -2404,7 +2428,7 @@ static itg VerInsOct(fpn VerCrd[3], fpn MinCrd[3], fpn MaxCrd[3])
 /* Setup a temporary test hex from the bounding box limits                    */
 /*----------------------------------------------------------------------------*/
 
-static void SetTmpHex(HexSct *hex, fpn MinCrd[3], fpn MaxCrd[3])
+static void SetTmpHex(HexSct *hex, fpn *MinCrd, fpn *MaxCrd)
 {
    hex->ver[0]->crd[0] = MinCrd[0];
    hex->ver[0]->crd[1] = MinCrd[1];
@@ -3013,7 +3037,7 @@ static itg VerInsEdg(EdgSct *edg, VerSct *ver, fpn eps)
 /* Compute the distance between a vertex and a triangle                       */
 /*----------------------------------------------------------------------------*/
 
-static fpn DisVerTri(MshSct *msh, fpn VerCrd[3], TriSct *tri)
+static fpn DisVerTri(fpn *VerCrd, TriSct *tri)
 {
    itg      i, cod = 0, inc = 1;
    fpn      dis1, TriSrf, SubSrf, TotSrf=0.;
@@ -3022,7 +3046,7 @@ static fpn DisVerTri(MshSct *msh, fpn VerCrd[3], TriSct *tri)
    TriSct   SubTri;
 
 #ifdef WITH_PROFILING
-   msh->CptTri++;
+   CptTri++;
 #endif
 
    // Compute the triangle's normal and surface
@@ -3104,13 +3128,13 @@ static fpn DisVerTri(MshSct *msh, fpn VerCrd[3], TriSct *tri)
 /*----------------------------------------------------------------------------*/
 
 #ifdef WITH_FAST_MODE
-static fpn DisVerTriStl(MshSct *msh, fpn VerCrd[3], StlSct *stl)
+static fpn DisVerTriStl(fpn *VerCrd, StlSct *stl)
 {
    itg      i, *IdxTab, cod = 0;
    fpn      dis1, dis2, SubSrf, ImgCrd[3], u[3], v[3], w[3], n[3][3], TotSrf;
 
 #ifdef WITH_PROFILING
-   msh->CptTri++;
+   CptTri++;
 #endif
 
    if(stl->srf == 0.)
@@ -3187,10 +3211,9 @@ static fpn DisVerTriStl(MshSct *msh, fpn VerCrd[3], StlSct *stl)
 /* Compute the distance between a vertex and a quad                           */
 /*----------------------------------------------------------------------------*/
 
-static fpn DisVerQad(MshSct *msh, fpn VerCrd[3], QadSct *qad)
+static fpn DisVerQad(fpn *VerCrd, QadSct *qad)
 {
-   return( MIN(DisVerTri(msh, VerCrd, &qad->tri[0]),
-               DisVerTri(msh, VerCrd, &qad->tri[1])) );
+   return(MIN(DisVerTri(VerCrd, &qad->tri[0]),DisVerTri(VerCrd, &qad->tri[1])));
 }
 
 
@@ -3267,7 +3290,7 @@ static fpn GetVolTet(TetSct *tet)
 /* Compute the distance between a vertex and an edge                          */
 /*----------------------------------------------------------------------------*/
 
-static fpn DisVerEdg(fpn VerCrd[3], EdgSct *edg)
+static fpn DisVerEdg(fpn *VerCrd, EdgSct *edg)
 {
    fpn dis0, dis1, TotSiz = 0.;
    VerSct img;
@@ -3290,7 +3313,7 @@ static fpn DisVerEdg(fpn VerCrd[3], EdgSct *edg)
 /*----------------------------------------------------------------------------*/
 
 #ifdef WITH_FAST_MODE
-static fpn DisVerEdgStl(fpn VerCrd[3], fpn *crd0, fpn *crd1, fpn *tng, fpn siz)
+static fpn DisVerEdgStl(fpn *VerCrd, fpn *crd0, fpn *crd1, fpn *tng, fpn siz)
 {
    fpn dis0, dis1, ImgCrd[3], TotSiz = 0.;
 
@@ -3312,7 +3335,7 @@ static fpn DisVerEdgStl(fpn VerCrd[3], fpn *crd0, fpn *crd1, fpn *tng, fpn siz)
 /* Compute the triangle's normal vector                                       */
 /*----------------------------------------------------------------------------*/
 
-static void GetTriVec(TriSct *tri, fpn w[3])
+static void GetTriVec(TriSct *tri, fpn *w)
 {
    fpn u[3], v[3];
 
@@ -3365,8 +3388,8 @@ static void SetEdgTng(EdgSct *edg)
 /* Compute the normal projection of a point on a line                         */
 /*----------------------------------------------------------------------------*/
 
-static void PrjVerLin(  fpn VerCrd[3], fpn LinCrd[3],
-                        fpn LinTng[3], fpn ImgCrd[3] )
+static void PrjVerLin(  fpn *VerCrd, fpn *LinCrd,
+                        fpn *LinTng, fpn *ImgCrd )
 {
    fpn dp, u[3];
 
@@ -3381,8 +3404,8 @@ static void PrjVerLin(  fpn VerCrd[3], fpn LinCrd[3],
 /* Compute the normal projection of a vertex on a plane                       */
 /*----------------------------------------------------------------------------*/
 
-static fpn PrjVerPla(fpn VerCrd[3], fpn PlaCrd[3],
-                     fpn PlaNrm[3], fpn ImgCrd[3] )
+static fpn PrjVerPla(fpn *VerCrd, fpn *PlaCrd,
+                     fpn *PlaNrm, fpn *ImgCrd )
 {
    fpn DisPla, u[3];
 
@@ -3402,7 +3425,7 @@ static fpn PrjVerPla(fpn VerCrd[3], fpn PlaCrd[3],
 /* Compute the distance between a vertex and a plane                          */
 /*----------------------------------------------------------------------------*/
 
-static fpn DisVerPla(fpn VerCrd[3], fpn PlaCrd[3], fpn PlaNrm[3])
+static fpn DisVerPla(fpn *VerCrd, fpn *PlaCrd, fpn *PlaNrm)
 {
    fpn vec[3];
 
@@ -3463,7 +3486,7 @@ static fpn GetTriAni(TriSct *tri)
 /*----------------------------------------------------------------------------*/
 
 // Euclidian distance
-static fpn dis(fpn a[3], fpn b[3])
+static fpn dis(fpn *a, fpn *b)
 {
    itg i;
    fpn siz = 0;
@@ -3475,7 +3498,7 @@ static fpn dis(fpn a[3], fpn b[3])
 }
 
 // Euclidian distance to the power of two
-static fpn DisPow(fpn a[3], fpn b[3])
+static fpn DisPow(fpn *a, fpn *b)
 {
    itg i;
    fpn siz = 0;
@@ -3487,7 +3510,7 @@ static fpn DisPow(fpn a[3], fpn b[3])
 }
 
 // W = U - V
-static void SubVec3(fpn u[3], fpn v[3], fpn w[3])
+static void SubVec3(fpn *u, fpn *v, fpn *w)
 {
    itg i;
 
@@ -3496,7 +3519,7 @@ static void SubVec3(fpn u[3], fpn v[3], fpn w[3])
 }
 
 // Dot Product
-static fpn DotPrd(fpn u[3], fpn v[3])
+static fpn DotPrd(fpn *u, fpn *v)
 {
    itg i;
    fpn dp = 0;
@@ -3508,7 +3531,7 @@ static fpn DotPrd(fpn u[3], fpn v[3])
 }
 
 // Cross product
-static void CrsPrd(fpn u[3], fpn v[3], fpn w[3])
+static void CrsPrd(fpn *u, fpn *v, fpn *w)
 {
    w[0] = u[1] * v[2] - u[2] * v[1];
    w[1] = u[2] * v[0] - u[0] * v[2];
@@ -3516,7 +3539,7 @@ static void CrsPrd(fpn u[3], fpn v[3], fpn w[3])
 }
 
 // Linear combinaison: W = a*U + b*V
-static void LinCmbVec3(fpn w1, fpn v1[3], fpn w2, fpn v2[3], fpn v3[3])
+static void LinCmbVec3(fpn w1, fpn *v1, fpn w2, fpn *v2, fpn *v3)
 {
    itg i;
 
@@ -3525,7 +3548,7 @@ static void LinCmbVec3(fpn w1, fpn v1[3], fpn w2, fpn v2[3], fpn v3[3])
 }
 
 // U = 0
-static void ClrVec(fpn u[3])
+static void ClrVec(fpn *u)
 {
    itg i;
 
@@ -3534,7 +3557,7 @@ static void ClrVec(fpn u[3])
 }
 
 // V = U
-static void CpyVec(fpn u[3], fpn v[3])
+static void CpyVec(fpn *u, fpn *v)
 {
    itg i;
 
@@ -3543,7 +3566,7 @@ static void CpyVec(fpn u[3], fpn v[3])
 }
 
 // V = V + U
-static void AddVec2(fpn u[3], fpn v[3])
+static void AddVec2(fpn *u, fpn *v)
 {
    itg i;
 
@@ -3552,7 +3575,7 @@ static void AddVec2(fpn u[3], fpn v[3])
 }
 
 // U = U + [s;s;s]
-static void AddScaVec1(fpn s, fpn u[3])
+static void AddScaVec1(fpn s, fpn *u)
 {
    itg i;
 
@@ -3561,7 +3584,7 @@ static void AddScaVec1(fpn s, fpn u[3])
 }
 
 // V = U + [s;s;s]
-static void AddScaVec2(fpn s, fpn u[3], fpn v[3])
+static void AddScaVec2(fpn s, fpn *u, fpn *v)
 {
    itg i;
 
@@ -3570,7 +3593,7 @@ static void AddScaVec2(fpn s, fpn u[3], fpn v[3])
 }
 
 // U = w*U
-static void MulVec1(fpn w, fpn u[3])
+static void MulVec1(fpn w, fpn *u)
 {
    u[0] *= w;
    u[1] *= w;
@@ -3578,7 +3601,7 @@ static void MulVec1(fpn w, fpn u[3])
 }
 
 // V = w*U
-static void MulVec2(fpn w, fpn u[3], fpn v[3])
+static void MulVec2(fpn w, fpn *u, fpn *v)
 {
    itg i;
 
@@ -3587,7 +3610,7 @@ static void MulVec2(fpn w, fpn u[3], fpn v[3])
 }
 
 // Return Euclidian norm
-static fpn GetNrmVec(fpn u[3])
+static fpn GetNrmVec(fpn *u)
 {
    return(sqrt(POW(u[0]) + POW(u[1]) + POW(u[2])));
 }

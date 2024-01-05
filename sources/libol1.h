@@ -2,17 +2,20 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.80                         */
+/*                      LIB OCTREE LOCALISATION V1.82                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   jul 16 2021                                        */
+/*    Last modification:   jan 04 2024                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
+
+#ifndef LIBOL1_H
+#define LIBOL1_H
 
 /*----------------------------------------------------------------------------*/
 /* ANSI C headers                                                             */
@@ -92,4 +95,6 @@ itg      LolCheckIntersections(int64_t, itg, itg *);
 #define call(x) x
 #else
 #define call(x) x ## _
+#endif
+
 #endif
