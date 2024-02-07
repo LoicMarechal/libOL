@@ -3,6 +3,10 @@
 # BUILD C EXAMPLES
 ##################
 
+add_executable(filtered_projections filtered_projections.c)
+target_link_libraries(filtered_projections OL.1 ${libMeshb_LIBRARIES} ${math_LIBRARIES})
+install (TARGETS filtered_projections DESTINATION share/libOL/examples COMPONENT examples)
+
 add_executable(test_libol test_libol1.c)
 target_link_libraries(test_libol OL.1 ${libMeshb_LIBRARIES} ${math_LIBRARIES})
 install (TARGETS test_libol DESTINATION share/libOL/examples COMPONENT examples)
