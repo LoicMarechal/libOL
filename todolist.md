@@ -15,3 +15,4 @@
 - translate the documentation to english
 - optional mode for faster queries (+35%) at the cost of 2.5 the memory footprint
 - add a NewOctreeFromSTL() procedure for simpler and faster octree build and queries
+- added an example to illustrate the use of filtering procedures
