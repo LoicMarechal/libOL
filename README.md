@@ -44,7 +44,7 @@ When speed is is more critical than memory, you can compile the library with the
 
 ## Usage
 It is made of a single *ANSI C* file and a header file to be compiled and linked alongside the calling program.  
-It may be used in C, C++, Fortran 77 and 90 programs.  
+It may be used in C or C++ programs.
 Tested on *Linux*, *macOS*, and *Windows 7->10*.
 
 Here is a basic example that builds an octree from a surface mesh made of vertices (NmbVer vertices stored in VerTab[]) and triangles (NmbTri elements stored in TriTab[]), then searches for the closest triangle from a set of coordinates:

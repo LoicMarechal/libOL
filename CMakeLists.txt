@@ -10,15 +10,6 @@ project (libOL VERSION ${libOL_VERSION_MAJOR}.${libOL_VERSION_MINOR} LANGUAGES C
 
 option(WITH_CPACK    "Enable cpack target to generate a zip file containing binaries"   OFF)
 
-include (CheckLanguage)
-check_language (Fortran)
-if(CMAKE_Fortran_COMPILER)
-  enable_language(Fortran)
-  if (CMAKE_Fortran_COMPILER_ID STREQUAL GNU)
-     set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=legacy")
-  endif ()
-endif()
-
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif ()
