@@ -37,8 +37,8 @@
 
 \begin{flushright}
 \Large Lo\"ic MAR\'ECHAL / INRIA, Projet Gamma\\
-\Large Avril 2021 \\
-\normalsize Document v1.51, librairie v1.73
+\Large Février 2024 \\
+\normalsize Document v1.52, librairie v1.82
 \end{flushright}
 
 \end{titlepage}
@@ -118,9 +118,9 @@ Il est à noter que l'intersection d'un triangle avec une boîte est calculée d
 
 La vitesse de création est d'environ 2.000.000 de sommets ou 200.000 triangles par seconde et la consommation mémoire de 30 octets par sommet ou 240 octets par triangle.
 
-La librairie étant constituée d'un seul fichier {\tt liboctree.c} et d'un fichier de définitions {\tt liboctree.h} pour le C et {\tt liboctree.ins} pour le Fortran, il est conseillé d'inclure et de compiler le code source avec votre propre logiciel.
+La librairie étant constituée d'un seul fichier {\tt liboctree.c} et d'un fichier de définitions {\tt liboctree.h} pour le C et {\tt liboctree.ins}.
 
-Note : par défaut la librairie utilise des entiers codés sur 32 bits, mais il est possible de les étendre à 64 bits en passant le paramètre {\tt -Di8} au compilateur. Tous les paramètres de type {\tt int} en C deviennent alors des {\tt int64\_t}, resp. {\tt integer} à {\tt integer*8} en Fortran.
+Note : par défaut la librairie utilise des entiers codés sur 32 bits, mais il est possible de les étendre à 64 bits en passant le paramètre {\tt -Di8} au compilateur.
 
 
 %
