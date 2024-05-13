@@ -2,7 +2,7 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.83                         */
+/*                      LIB OCTREE LOCALISATION V1.84                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
@@ -1895,7 +1895,7 @@ static void SetMshBox(OtrSct *box, MshSct *msh)
    // Compute the bounding box
    siz = MAX(MaxCrd[0] - MinCrd[0], MaxCrd[1] - MinCrd[1]);
    siz = MAX(siz, MaxCrd[2] - MinCrd[2]);
-   box->eps = siz * FLT_EPSILON;
+   box->eps = siz * DBL_EPSILON;
    box->MinSiz = box->MaxSiz = siz;
 
    // Move the center 1/1000th away
