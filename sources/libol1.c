@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.82                         */
+/*                      LIB OCTREE LOCALISATION V1.83                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   jan 04 2024                                        */
+/*    Last modification:   may 13 2024                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -603,10 +603,6 @@ int64_t LolNewOctree(itg NmbVer, const fpn *PtrCrd1, const fpn *PtrCrd2,
    for(i=0;i<msh->NmbItm[ LolTypVer ];i++)
    {
       SetItm(msh, LolTypVer, i + BasIdx, 0, 0);
-
-      if(msh->thr[0]->ver[0].crd[0] == 0. && msh->thr[0]->ver[0].crd[1] == 0. && msh->thr[0]->ver[0].crd[2] == 0.)
-         continue;
-
       ret = AddVer(msh, otr, &otr->oct, otr->bnd[0], otr->bnd[1]);
       CHKRET(ret);
    }
