@@ -3,7 +3,7 @@
 # GLOBAL CONFIGURATION VARIABLES
 ################################
 
-cmake_minimum_required (VERSION 3.7.2)
+cmake_minimum_required (VERSION 3.18)
 set (libOL_VERSION_MAJOR 1)
 set (libOL_VERSION_MINOR 73)
 project (libOL VERSION ${libOL_VERSION_MAJOR}.${libOL_VERSION_MINOR} LANGUAGES C)
@@ -22,7 +22,11 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
    if (WIN32)
       set(CMAKE_INSTALL_PREFIX "$ENV{HOMEPATH}/cmakebuilds" CACHE PATH "..." FORCE)
    else ()
-      set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/cmakebuilds/$ENV{OSTYPE}-$ENV{MACHTYPE}" CACHE PATH "..." FORCE)
+      if (DEFINED ENV{OSTYPE} AND DEFINED ENV{MACHTYPE})
+         set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/cmakebuilds/$ENV{OSTYPE}-$ENV{MACHTYPE}" CACHE PATH "..." FORCE)
+      else ()
+         set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/cmakebuilds" CACHE PATH "..." FORCE)
+      endif ()
    endif()
 endif ()
 
@@ -36,7 +40,7 @@ list (APPEND CMAKE_PREFIX_PATH "${CMAKE_INSTALL_PREFIX}")
 include_directories (${PROJECT_SOURCE_DIR}/sources)
 add_subdirectory (sources)
 
-find_package(LPlib 3)
+find_package(LPlib)
 find_package(libMeshb 7)
 
 if(libMeshb_FOUND)
