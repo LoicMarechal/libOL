@@ -15,6 +15,10 @@ if(LPlib_FOUND)
    add_executable(parallel_libol parallel_libol.c)
    target_link_libraries(parallel_libol OL.1 ${libMeshb_LIBRARIES} ${LPlib_LIBRARIES} ${math_LIBRARIES})
    install (TARGETS parallel_libol DESTINATION share/libOL/examples COMPONENT examples)
+
+   add_executable(vol2surf_distance vol2surf_distance.c)
+   target_link_libraries(vol2surf_distance OL.1 ${libMeshb_LIBRARIES} ${LPlib_LIBRARIES} ${math_LIBRARIES})
+   install (TARGETS vol2surf_distance DESTINATION share/libOL/examples COMPONENT examples)
 endif ()
 
 

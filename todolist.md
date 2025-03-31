@@ -2,8 +2,9 @@
 
 ### STANDARD PRIORITY
 - reserve keywords and data structures for hybrid and 2nd order elements
-- optionally include the LPlib and build the octree in parallel
 - add a procedure to detect volume subdomains
+- build the octree in parallel by inserting batches of entities whose bounding box do not overlap
+- add test scenarios: surface proximity, level set, distributed surface volume collision, all to all mapping
 
 ### DONE
 - generate local diameter size map
@@ -16,3 +17,4 @@
 - optional mode for faster queries (+35%) at the cost of 2.5 the memory footprint
 - add a NewOctreeFromSTL() procedure for simpler and faster octree build and queries
 - added an example to illustrate the use of filtering procedures
+- added an example that computes the distances between a volume mesh's vertices and a surface mesh
