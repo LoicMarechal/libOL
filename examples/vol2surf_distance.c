@@ -155,11 +155,12 @@ int main(int ArgCnt, char **ArgVec)
    printf(" %g s\n", GetWallClock() - t);
 
 
-   /*----------------------------------- -*/
+   /*-------------------------------------*/
    /* Write the distances in a .solb file */
-   /*----------------------------------- -*/
+   /*-------------------------------------*/
 
    printf("Writing the solution      : ");
+   t = GetWallClock();
    WriteSol(&SolMsh, SolMsh.FilNam);
    printf(" %g s\n", GetWallClock() - t);
 
