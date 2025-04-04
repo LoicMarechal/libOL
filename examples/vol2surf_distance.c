@@ -10,7 +10,7 @@
 /*                      the surface mesh and store the results in a sizemap   */
 /* Author:              Loic MARECHAL                                         */
 /* Creation date:       mar 31 2025                                           */
-/* Last modification:   mar 31 2025                                           */
+/* Last modification:   apr 04 2025                                           */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <math.h>
 #include <libmeshb7.h>
 #include <lplib3.h>
 #include <libol1.h>
@@ -267,7 +268,43 @@ int WriteSol(MshSct *msh, char *FilNam)
 
 void ParallelSearch(int BegIdx, int EndIdx, int PthIdx, ParSct *par)
 {
-   for(int i=BegIdx; i<=EndIdx; i++)
-      LolGetNearest( par->OctIdx, LolTypTri, par->VolMsh->VerTab[i],
-                     &par->SolMsh->SizMap[i], 0, NULL, NULL, PthIdx );
+   int      i, j, NmbTri, TriIdx, ItmIdx;
+   double   PrjCrd[3], tng[3], siz;
+
+   for(i=BegIdx;i<=EndIdx;i++)
+   {
+      // Search for the closest surface triangle from eahc volume vertex
+      TriIdx = LolGetNearest( par->OctIdx, LolTypTri, par->VolMsh->VerTab[i],
+                              &par->SolMsh->SizMap[i], 0, NULL, NULL, PthIdx );
+
+      if(!TriIdx)
+         continue;
+
+      // Project the volume vertex on the triangle
+      ItmIdx = LolProjectVertex( par->OctIdx, par->VolMsh->VerTab[i],
+                                 LolTypTri, TriIdx, PrjCrd, 0 );
+
+      if(!ItmIdx)
+         continue;
+
+      // Compute a vector from the volume vertex to the projection
+      for(j=0;j<3;j++)
+         tng[j] = PrjCrd[j] - par->VolMsh->VerTab[i][j];
+
+      siz = sqrt(tng[0] * tng[0] + tng[1] * tng[1] + tng[2] * tng[2]);
+
+      if(siz == 0.)
+         continue;
+
+      for(j=0;j<3;j++)
+         tng[j] /= siz;
+
+      // Get the number of triangles intersected by the vector
+      NmbTri = LolIsInside(par->OctIdx, par->VolMsh->VerTab[i], tng, PthIdx);
+
+      // If this number is odd, the vertex stands outside the surface
+      // so we make it a negative distance
+      if(!(NmbTri & 1))
+         par->SolMsh->SizMap[i] = -par->SolMsh->SizMap[i];
+   }
 }
