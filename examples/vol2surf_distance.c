@@ -10,7 +10,7 @@
 /*                      the surface mesh and store the results in a sizemap   */
 /* Author:              Loic MARECHAL                                         */
 /* Creation date:       mar 31 2025                                           */
-/* Last modification:   apr 04 2025                                           */
+/* Last modification:   apr 24 2025                                           */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -35,7 +35,7 @@
 
 typedef struct
 {
-   int      ver, dim, NmbVer, NmbTri, NmbTet, (*TriTab)[3], (*TetTab)[4];
+   int      ver, dim, NmbVer, NmbTri, (*TriTab)[3];
    double   (*VerTab)[3], *SizMap;
    char     *FilNam;
    int64_t  FilIdx;
@@ -56,6 +56,8 @@ typedef struct
 void     ParallelSearch(int, int, int, ParSct *);
 MshSct  *ReadMesh(char *);
 int      WriteSol(MshSct *, char *);
+void     CpyVec(double *, double *);
+double   GetTetVol(double [4][3]);
 
 
 /*----------------------------------------------------------------------------*/
@@ -199,9 +201,8 @@ MshSct *ReadMesh(char *FilNam)
 
    msh->NmbVer = GmfStatKwd(msh->FilIdx, GmfVertices);
    msh->NmbTri = GmfStatKwd(msh->FilIdx, GmfTriangles);
-   msh->NmbTet = GmfStatKwd(msh->FilIdx, GmfTetrahedra);
  
-   if( !msh->NmbVer || (msh->NmbTri + msh->NmbTet) == 0 || (msh->dim != 3) )
+   if( !msh->NmbVer || (msh->dim != 3) )
    {
       puts("Incompatible mesh.");
       exit(2);
@@ -221,16 +222,6 @@ MshSct *ReadMesh(char *FilNam)
 
       GmfGetBlock(msh->FilIdx, GmfTriangles, 1, msh->NmbTri, 0, NULL, NULL,
                   GmfIntVec, 3, msh->TriTab[1], msh->TriTab[ msh->NmbTri ],
-                  GmfInt, &ref, &ref );
-   }
-
-   if(msh->NmbTet)
-   {
-      msh->TetTab = malloc( (msh->NmbTet + 1) * 4 * sizeof(int) );
-      assert(msh->TetTab);
-
-      GmfGetBlock(msh->FilIdx, GmfTetrahedra, 1, msh->NmbTet, 0, NULL, NULL,
-                  GmfIntVec, 4, msh->TetTab[1], msh->TetTab[ msh->NmbTet ],
                   GmfInt, &ref, &ref );
    }
 
@@ -268,43 +259,62 @@ int WriteSol(MshSct *msh, char *FilNam)
 
 void ParallelSearch(int BegIdx, int EndIdx, int PthIdx, ParSct *par)
 {
-   int      i, j, NmbTri, TriIdx, ItmIdx;
-   double   PrjCrd[3], tng[3], siz;
+   int i, j, TriIdx;
+   double TetCrd[4][3];
 
    for(i=BegIdx;i<=EndIdx;i++)
    {
-      // Search for the closest surface triangle from eahc volume vertex
+      // Search for the closest surface triangle from each volume vertex
       TriIdx = LolGetNearest( par->OctIdx, LolTypTri, par->VolMsh->VerTab[i],
                               &par->SolMsh->SizMap[i], 0, NULL, NULL, PthIdx );
 
       if(!TriIdx)
+      {
+         printf("Could not find the nearest triangle from vertex %d\n", i);
          continue;
+      }
 
-      // Project the volume vertex on the triangle
-      ItmIdx = LolProjectVertex( par->OctIdx, par->VolMsh->VerTab[i],
-                                 LolTypTri, TriIdx, PrjCrd, 0 );
-
-      if(!ItmIdx)
-         continue;
-
-      // Compute a vector from the volume vertex to the projection
-      for(j=0;j<3;j++)
-         tng[j] = PrjCrd[j] - par->VolMsh->VerTab[i][j];
-
-      siz = sqrt(tng[0] * tng[0] + tng[1] * tng[1] + tng[2] * tng[2]);
-
-      if(siz == 0.)
-         continue;
+      CpyVec(par->VolMsh->VerTab[i], TetCrd[3]);
 
       for(j=0;j<3;j++)
-         tng[j] /= siz;
+         CpyVec(par->SrfMsh->VerTab[ par->SrfMsh->TriTab[ TriIdx ][j] ], TetCrd[j]);
 
-      // Get the number of triangles intersected by the vector
-      NmbTri = LolIsInside(par->OctIdx, par->VolMsh->VerTab[i], tng, PthIdx);
-
-      // If this number is odd, the vertex stands outside the surface
-      // so we make it a negative distance
-      if(!(NmbTri & 1))
+      if(GetTetVol(TetCrd) < 0.)
          par->SolMsh->SizMap[i] = -par->SolMsh->SizMap[i];
    }
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* Vector functions                                                           */
+/*----------------------------------------------------------------------------*/
+
+void CpyVec(double *u, double *v)
+{
+   v[0] = u[0];
+   v[1] = u[1];
+   v[2] = u[2];
+}
+
+double GetTetVol(double TetCrd[4][3])
+{
+   double mat[9];
+
+   // Create the linear system, each column is filled with a vector
+   mat[0] = TetCrd[1][0] - TetCrd[0][0];
+   mat[1] = TetCrd[2][0] - TetCrd[0][0];
+   mat[2] = TetCrd[3][0] - TetCrd[0][0];
+
+   mat[3] = TetCrd[1][1] - TetCrd[0][1];
+   mat[4] = TetCrd[2][1] - TetCrd[0][1];
+   mat[5] = TetCrd[3][1] - TetCrd[0][1];
+
+   mat[6] = TetCrd[1][2] - TetCrd[0][2];
+   mat[7] = TetCrd[2][2] - TetCrd[0][2];
+   mat[8] = TetCrd[3][2] - TetCrd[0][2];
+
+   // Return the determinant of the matrix
+   return(  mat[0] * (mat[4]*mat[8] - mat[5]*mat[7])
+         +  mat[1] * (mat[5]*mat[6] - mat[3]*mat[8])
+         +  mat[2] * (mat[3]*mat[7] - mat[4]*mat[6]) );
 }
