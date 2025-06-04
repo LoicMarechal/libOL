@@ -2,14 +2,14 @@
 
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
-/*                      LIB OCTREE LOCALISATION V1.84                         */
+/*                      LIB OCTREE LOCALISATION V1.85                         */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Description:         Octree for mesh localization                       */
 /*    Author:              Loic MARECHAL                                      */
 /*    Creation date:       mar 16 2012                                        */
-/*    Last modification:   may 13 2024                                        */
+/*    Last modification:   jun 03 2025                                        */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -34,7 +34,7 @@
 /*----------------------------------------------------------------------------*/
 
 #define MaxItmOct    20
-#define MaxOctLvl    255
+#define MaxOctLvl    32
 #define ItmPerBuc    300
 #define MemBlkSiz    100000
 #define TngFlg       1
