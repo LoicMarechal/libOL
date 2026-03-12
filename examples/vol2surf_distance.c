@@ -10,7 +10,7 @@
 /*                      the surface mesh and store the results in a sizemap   */
 /* Author:              Loic MARECHAL                                         */
 /* Creation date:       mar 31 2025                                           */
-/* Last modification:   apr 24 2025                                           */
+/* Last modification:   mar 12 2026                                           */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -24,8 +24,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
-#include <libmeshb7.h>
-#include <lplib3.h>
+#include <libmeshb8.h>
+#include <lplib4.h>
 #include <libol1.h>
 
 

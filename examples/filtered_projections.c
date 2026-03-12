@@ -10,7 +10,7 @@
 /*                      belonging to a given reference                        */
 /* Author:              Loic MARECHAL                                         */
 /* Creation date:       feb 07 2024                                           */
-/* Last modification:   feb 07 2024                                           */
+/* Last modification:   mar 12 2026                                           */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -22,7 +22,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <libmeshb7.h>
+#include <libmeshb8.h>
 #include <libol1.h>
 
 

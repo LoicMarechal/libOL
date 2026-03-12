@@ -9,7 +9,7 @@
 /* Description:         Basic localization test on a surface mesh             */
 /* Author:              Loic MARECHAL                                         */
 /* Creation date:       mar 16 2012                                           */
-/* Last modification:   mar 11 2022                                           */
+/* Last modification:   mar 12 2026                                           */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <limits.h>
-#include <libmeshb7.h>
+#include <libmeshb8.h>
 #include <libol1.h>
 
 

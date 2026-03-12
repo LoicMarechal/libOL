@@ -5,7 +5,7 @@
 
 cmake_minimum_required (VERSION 3.18)
 set (libOL_VERSION_MAJOR 1)
-set (libOL_VERSION_MINOR 73)
+set (libOL_VERSION_MINOR 85)
 project (libOL VERSION ${libOL_VERSION_MAJOR}.${libOL_VERSION_MINOR} LANGUAGES C)
 
 option(WITH_CPACK    "Enable cpack target to generate a zip file containing binaries"   OFF)
@@ -40,8 +40,8 @@ list (APPEND CMAKE_PREFIX_PATH "${CMAKE_INSTALL_PREFIX}")
 include_directories (${PROJECT_SOURCE_DIR}/sources)
 add_subdirectory (sources)
 
-find_package(LPlib)
-find_package(libMeshb 7)
+find_package(LPlib 4)
+find_package(libMeshb 8)
 
 if(libMeshb_FOUND)
    include_directories (${libMeshb_INCLUDE_DIRS})
@@ -49,7 +49,7 @@ if(libMeshb_FOUND)
    add_subdirectory (examples)
 else()
    message (WARNING "
-   libMeshb.7 could not be found.
+   libMeshb.8 could not be found.
    Consequently, examples and utilities will not be built.
    You can download it from GitHUB at https://github.com/LoicMarechal/libMeshb")
 endif()
